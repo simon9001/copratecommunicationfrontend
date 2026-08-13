@@ -1,0 +1,105 @@
+/* =============================================
+   KeNHA VR Projects — Design Tokens
+   ============================================= */
+
+:root {
+  /* ---- Color Palette ---- */
+  --color-bg: #060A10;
+  --color-bg-deep: #020408;
+  --color-surface: rgba(10, 18, 30, 0.85);
+  --color-surface-solid: #0C1420;
+  --color-surface-hover: rgba(15, 25, 40, 0.9);
+  --color-surface-active: rgba(20, 35, 55, 0.95);
+
+  /* Accent */
+  --color-accent: #00E676;
+  --color-accent-hover: #00C853;
+  --color-accent-dim: rgba(0, 230, 118, 0.3);
+  --color-accent-glow: rgba(0, 230, 118, 0.15);
+  --color-accent-subtle: rgba(0, 230, 118, 0.08);
+
+  /* Text */
+  --color-text: #E8ECF1;
+  --color-text-secondary: #B0B8C8;
+  --color-text-muted: #8A94A6;
+  --color-text-dim: #5A6478;
+
+  /* Borders */
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-hover: rgba(255, 255, 255, 0.15);
+  --color-border-accent: rgba(0, 230, 118, 0.25);
+
+  /* Status Colors */
+  --color-success: #00E676;
+  --color-warning: #FFB300;
+  --color-error: #FF5252;
+  --color-info: #448AFF;
+  --color-planned: #448AFF;
+  --color-ongoing: #FFB300;
+  --color-completed: #00E676;
+  --color-suspended: #FF5252;
+
+  /* ---- Typography ---- */
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --text-xs: 0.6875rem;    /* 11px */
+  --text-sm: 0.8125rem;    /* 13px */
+  --text-base: 0.9375rem;  /* 15px */
+  --text-md: 1.0625rem;    /* 17px */
+  --text-lg: 1.25rem;      /* 20px */
+  --text-xl: 1.5rem;       /* 24px */
+  --text-2xl: 2rem;        /* 32px */
+  --text-3xl: 2.5rem;      /* 40px */
+  --text-4xl: 3.25rem;     /* 52px */
+
+  /* ---- Spacing ---- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+
+  /* ---- Borders & Radius ---- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* ---- Glassmorphism ---- */
+  --glass-bg: rgba(10, 18, 30, 0.85);
+  --glass-bg-light: rgba(15, 25, 42, 0.75);
+  --glass-blur: blur(20px);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+
+  /* ---- Shadows ---- */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 30px rgba(0, 230, 118, 0.15);
+
+  /* ---- Transitions ---- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+  --duration-slower: 600ms;
+
+  /* ---- Z-Indices ---- */
+  --z-globe: 1;
+  --z-overlay: 10;
+  --z-panel: 100;
+  --z-header: 200;
+  --z-modal: 1000;
+  --z-toast: 2000;
+}

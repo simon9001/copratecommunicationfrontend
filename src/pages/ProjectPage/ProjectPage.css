@@ -1,0 +1,196 @@
+.project-page {
+  min-height: 100vh;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  padding: 2rem;
+  font-family: var(--font-body);
+}
+
+.loading, .error, .not-found {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.5rem;
+}
+
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-text);
+  text-decoration: none;
+  margin-bottom: 2rem;
+  font-weight: 500;
+  transition: color 0.3s;
+}
+
+.back-button:hover {
+  color: var(--color-accent);
+}
+
+.hero-section {
+  position: relative;
+  height: 50vh;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 3rem;
+}
+
+.hero-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero-placeholder {
+  width: 100%;
+  height: 100%;
+  background-color: var(--color-surface);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.hero-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 3rem 2rem 2rem;
+  background: linear-gradient(to top, rgba(6, 10, 16, 0.9), transparent);
+}
+
+.project-title {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  margin: 0.5rem 0 0 0;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-green { background-color: rgba(0, 230, 118, 0.2); color: #00E676; }
+.status-amber { background-color: rgba(255, 193, 7, 0.2); color: #FFC107; }
+.status-blue { background-color: rgba(33, 150, 243, 0.2); color: #2196F3; }
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 3rem;
+}
+
+.description-section, .media-section, .milestones-section {
+  margin-bottom: 3rem;
+}
+
+.description-section h2, .media-section h2, .milestones-section h2 {
+  font-family: var(--font-display);
+  color: var(--color-accent);
+  margin-bottom: 1.5rem;
+}
+
+.project-description {
+  line-height: 1.8;
+  color: var(--color-text-muted);
+  font-size: 1.1rem;
+}
+
+.stats-card {
+  background: var(--color-surface);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+}
+
+.stats-card h3 {
+  font-family: var(--font-display);
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 1rem;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1.5rem;
+}
+
+.stat-item:last-child {
+  margin-bottom: 0;
+}
+
+.stat-label {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.stat-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.milestone-timeline {
+  position: relative;
+  padding-left: 20px;
+}
+
+.milestone-timeline::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 5px;
+  bottom: 0;
+  width: 2px;
+  background-color: var(--color-border);
+}
+
+.milestone-item {
+  position: relative;
+  margin-bottom: 2rem;
+}
+
+.milestone-dot {
+  position: absolute;
+  left: -20px;
+  top: 5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: var(--color-accent);
+  box-shadow: 0 0 10px var(--color-accent-dim);
+}
+
+.milestone-content h4 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.1rem;
+}
+
+.milestone-date {
+  color: var(--color-accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.milestone-content p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
+@media (max-width: 992px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+}
