@@ -1,41 +1,52 @@
 /* =============================================
    KeNHA VR Projects — Design Tokens
+   Official KeNHA Brand Aesthetics & Space Dark Theme
    ============================================= */
 
 :root {
-  /* ---- Color Palette ---- */
-  --color-bg: #060A10;
-  --color-bg-deep: #020408;
-  --color-surface: rgba(10, 18, 30, 0.85);
-  --color-surface-solid: #0C1420;
-  --color-surface-hover: rgba(15, 25, 40, 0.9);
-  --color-surface-active: rgba(20, 35, 55, 0.95);
+  /* ---- KeNHA Official Brand Colors ---- */
+  --color-kenha-yellow: #FFC107;
+  --color-kenha-yellow-glow: rgba(255, 193, 7, 0.25);
+  --color-kenha-silver: #CBD5E1;
+  --color-kenha-dark: #070A0F;
 
-  /* Accent */
+  /* ---- Dark Theme Palette ---- */
+  --color-bg: #06090E;
+  --color-bg-deep: #030508;
+  --color-surface: rgba(10, 16, 26, 0.85);
+  --color-surface-solid: #0B121E;
+  --color-surface-hover: rgba(16, 26, 42, 0.9);
+  --color-surface-active: rgba(22, 36, 58, 0.95);
+
+  /* Accents */
   --color-accent: #00E676;
   --color-accent-hover: #00C853;
   --color-accent-dim: rgba(0, 230, 118, 0.3);
-  --color-accent-glow: rgba(0, 230, 118, 0.15);
+  --color-accent-glow: rgba(0, 230, 118, 0.18);
   --color-accent-subtle: rgba(0, 230, 118, 0.08);
 
+  --color-highlight: #FFC107;
+  --color-highlight-dim: rgba(255, 193, 7, 0.25);
+
   /* Text */
-  --color-text: #E8ECF1;
-  --color-text-secondary: #B0B8C8;
-  --color-text-muted: #8A94A6;
-  --color-text-dim: #5A6478;
+  --color-text: #F1F5F9;
+  --color-text-secondary: #CBD5E1;
+  --color-text-muted: #94A3B8;
+  --color-text-dim: #64748B;
 
   /* Borders */
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-border-hover: rgba(255, 255, 255, 0.15);
-  --color-border-accent: rgba(0, 230, 118, 0.25);
+  --color-border: rgba(255, 255, 255, 0.09);
+  --color-border-hover: rgba(255, 255, 255, 0.18);
+  --color-border-accent: rgba(0, 230, 118, 0.3);
+  --color-border-yellow: rgba(255, 193, 7, 0.35);
 
   /* Status Colors */
   --color-success: #00E676;
-  --color-warning: #FFB300;
+  --color-warning: #FFC107;
   --color-error: #FF5252;
-  --color-info: #448AFF;
-  --color-planned: #448AFF;
-  --color-ongoing: #FFB300;
+  --color-info: #38BDF8;
+  --color-planned: #38BDF8;
+  --color-ongoing: #FFC107;
   --color-completed: #00E676;
   --color-suspended: #FF5252;
 
@@ -65,7 +76,6 @@
   --space-10: 2.5rem;
   --space-12: 3rem;
   --space-16: 4rem;
-  --space-20: 5rem;
 
   /* ---- Borders & Radius ---- */
   --radius-xs: 4px;
@@ -76,16 +86,17 @@
   --radius-full: 9999px;
 
   /* ---- Glassmorphism ---- */
-  --glass-bg: rgba(10, 18, 30, 0.85);
-  --glass-bg-light: rgba(15, 25, 42, 0.75);
+  --glass-bg: rgba(10, 16, 26, 0.85);
+  --glass-bg-light: rgba(16, 26, 42, 0.75);
   --glass-blur: blur(20px);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.09);
 
   /* ---- Shadows ---- */
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.5);
   --shadow-glow: 0 0 30px rgba(0, 230, 118, 0.15);
+  --shadow-glow-yellow: 0 0 30px rgba(255, 193, 7, 0.2);
 
   /* ---- Transitions ---- */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -93,7 +104,6 @@
   --duration-fast: 150ms;
   --duration-normal: 250ms;
   --duration-slow: 400ms;
-  --duration-slower: 600ms;
 
   /* ---- Z-Indices ---- */
   --z-globe: 1;
@@ -101,5 +111,4 @@
   --z-panel: 100;
   --z-header: 200;
   --z-modal: 1000;
-  --z-toast: 2000;
 }

@@ -1,10 +1,10 @@
 .map-controls {
   position: fixed;
-  left: 30px;
-  bottom: 40px;
+  left: 24px;
+  bottom: 64px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   z-index: 50;
 }
 
@@ -14,7 +14,7 @@
   background: var(--color-surface, rgba(10, 18, 30, 0.85));
   backdrop-filter: var(--glass-blur, blur(20px));
   -webkit-backdrop-filter: var(--glass-blur, blur(20px));
-  border-radius: 8px;
+  border-radius: var(--radius-md, 10px);
   border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
   overflow: hidden;
 }
@@ -41,17 +41,37 @@
   backdrop-filter: var(--glass-blur, blur(20px));
   -webkit-backdrop-filter: var(--glass-blur, blur(20px));
   border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
-  border-radius: 8px;
+  border-radius: var(--radius-md, 10px);
   color: var(--color-text, #E8ECF1);
   cursor: pointer;
   transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
 .control-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   color: var(--color-accent, #00E676);
+  border-color: var(--color-border-hover);
+  transform: translateY(-1px);
 }
 
 .control-btn:active {
   transform: scale(0.95);
+}
+
+.mode-toggle-btn.night:hover {
+  border-color: var(--color-kenha-yellow, #FFC107);
+  box-shadow: 0 0 15px rgba(255, 193, 7, 0.25);
+}
+
+.mode-toggle-btn.day:hover {
+  border-color: #38BDF8;
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.25);
+}
+
+@media (max-width: 768px) {
+  .map-controls {
+    left: 16px;
+    bottom: 56px;
+  }
 }

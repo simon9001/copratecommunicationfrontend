@@ -1,50 +1,59 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Lock, Mail } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import './AdminLoginPage.css';
+import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Lock, Mail } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
+import './AdminLoginPage.css'
 
 const AdminLoginPage = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
-  const navigate = useNavigate();
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const { login } = useAuth()
+  const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
+    e.preventDefault()
+    setError('')
+    setIsLoading(true)
 
     try {
       const response = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
-      });
+      })
 
-      const data = await response.json();
+      const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
+        throw new Error(data.error?.message || data.message || 'Login failed')
       }
 
-      login(data.token, data.user);
-      navigate('/admin');
+      login(data.data.token, data.data.user)
+      navigate('/admin')
     } catch (err) {
-      setError(err.message);
+      setError(err.message)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   return (
     <div className="admin-login-page">
       <div className="login-card">
         <div className="login-header">
-          <h1 className="login-logo">KeNHA <span>VR</span></h1>
-          <h2>Administrator Access</h2>
+          <img
+            src="/kenha-logo.jpg"
+            alt="Kenya National Highways Authority"
+            className="login-kenha-logo"
+          />
+          <h2 style={{ fontSize: 'var(--text-lg)', color: 'var(--color-text)', marginTop: 'var(--space-2)' }}>
+            Administrator Portal
+          </h2>
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-kenha-yellow)' }}>
+            Quality Highways, Better Connections
+          </p>
         </div>
 
         {error && <div className="login-error">{error}</div>}
@@ -78,7 +87,7 @@ const AdminLoginPage = () => {
         </form>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default AdminLoginPage;
+export default AdminLoginPage
