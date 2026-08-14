@@ -1,0 +1,167 @@
+.county-panel {
+  position: fixed;
+  top: 80px;
+  left: -360px;
+  width: 320px;
+  background: var(--glass-bg, rgba(10, 16, 26, 0.92));
+  backdrop-filter: var(--glass-blur, blur(20px));
+  -webkit-backdrop-filter: var(--glass-blur, blur(20px));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.09));
+  border-left: none;
+  border-radius: 0 var(--radius-lg, 16px) var(--radius-lg, 16px) 0;
+  z-index: var(--z-panel, 100);
+  transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 10px 0 40px rgba(0, 0, 0, 0.5);
+}
+
+.county-panel.open {
+  left: 0;
+}
+
+.county-panel-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: var(--color-text-muted, #94A3B8);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.county-panel-close:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--color-text, #F1F5F9);
+  transform: rotate(90deg);
+}
+
+.county-panel-content {
+  padding: 28px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.county-panel-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 193, 7, 0.12);
+  color: var(--color-highlight, #FFC107);
+  padding: 4px 10px;
+  border-radius: var(--radius-full, 9999px);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  font-family: var(--font-body, sans-serif);
+  margin-bottom: 6px;
+}
+
+.county-panel-name {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--color-text, #F1F5F9);
+  line-height: 1.2;
+  margin: 0;
+}
+
+.county-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.county-stat-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-md, 10px);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 0.2s;
+}
+
+.county-stat-card.total {
+  grid-column: 1 / -1;
+  background: rgba(0, 230, 118, 0.06);
+  border-color: rgba(0, 230, 118, 0.2);
+}
+
+.county-stat-card.ongoing { border-color: rgba(255, 193, 7, 0.25); }
+.county-stat-card.completed { border-color: rgba(0, 230, 118, 0.25); }
+.county-stat-card.planned { border-color: rgba(56, 189, 248, 0.25); }
+
+.county-stat-icon {
+  margin-bottom: 2px;
+}
+.county-stat-card.ongoing .county-stat-icon { color: var(--color-ongoing, #FFC107); }
+.county-stat-card.completed .county-stat-icon { color: var(--color-completed, #00E676); }
+.county-stat-card.planned .county-stat-icon { color: var(--color-planned, #38BDF8); }
+
+.county-stat-number {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--color-text, #F1F5F9);
+  font-family: var(--font-display, sans-serif);
+  line-height: 1;
+}
+
+.county-stat-card.total .county-stat-number {
+  color: var(--color-accent, #00E676);
+  font-size: 2.4rem;
+}
+
+.county-stat-label {
+  font-size: 11px;
+  color: var(--color-text-dim, #64748B);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: var(--font-body, sans-serif);
+}
+
+.county-suspended-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(255, 82, 82, 0.1);
+  border: 1px solid rgba(255, 82, 82, 0.2);
+  border-radius: var(--radius-sm, 6px);
+  font-size: 12px;
+  color: var(--color-suspended, #FF5252);
+  font-family: var(--font-body, sans-serif);
+}
+
+.county-view-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--color-highlight, #FFC107);
+  color: #000;
+  border: none;
+  border-radius: var(--radius-md, 10px);
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.county-view-btn:hover:not(:disabled) {
+  background: #e6ad00;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(255, 193, 7, 0.25);
+}
+
+.county-view-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

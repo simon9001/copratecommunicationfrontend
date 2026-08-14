@@ -33,8 +33,24 @@ async function request(endpoint, options = {}) {
 
 /* ---- Public Endpoints ---- */
 
-export async function getPublicMapProjects() {
-  return request('/public/map')
+export async function getPublicMapProjects(county, status) {
+  const params = new URLSearchParams()
+  if (county && county !== 'All') params.set('county', county)
+  if (status && status !== 'All') params.set('status', status)
+  const qs = params.toString()
+  return request(`/public/map${qs ? '?' + qs : ''}`)
+}
+
+export async function getCountyStats() {
+  return request('/public/counties/stats')
+}
+
+export async function getAllProjectRoutes() {
+  return request('/public/routes')
+}
+
+export async function getProjectRoute(id) {
+  return request(`/public/projects/${id}/route`)
 }
 
 export async function getPublicSummaries() {

@@ -1,7 +1,49 @@
 .explore-page {
-  width: 100vw;
-  height: 100vh;
+  flex: 1;
   position: relative;
+  height: calc(100vh - 68px - 48px);
   overflow: hidden;
-  background-color: var(--color-bg, #060A10);
+  background: #06090E;
+}
+
+/* Loading spinner */
+.explore-loading {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.explore-loading-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-accent, #00E676);
+  animation: loading-pulse 1.2s ease-in-out infinite;
+  box-shadow: 0 0 20px rgba(0, 230, 118, 0.5);
+}
+
+@keyframes loading-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.3; transform: scale(0.7); }
+}
+
+/* Error notice */
+.explore-error {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-overlay, 10);
+  background: rgba(255, 82, 82, 0.15);
+  border: 1px solid rgba(255, 82, 82, 0.35);
+  border-radius: var(--radius-md, 10px);
+  padding: 10px 18px;
+  color: #FF5252;
+  font-size: 13px;
+  font-family: var(--font-body, sans-serif);
+  backdrop-filter: blur(12px);
+  white-space: nowrap;
 }
