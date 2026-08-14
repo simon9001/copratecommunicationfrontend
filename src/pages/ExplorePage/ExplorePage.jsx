@@ -2,11 +2,11 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import KenyaGlobe from '../../components/Globe/KenyaGlobe'
 import StatsOverlay from '../../components/StatsOverlay/StatsOverlay'
 import MapControls from '../../components/MapControls/MapControls'
-import ProjectPanel from '../../components/ProjectPanel/ProjectPanel'
 import CountyPanel from '../../components/CountyPanel/CountyPanel'
 import LayerControl from '../../components/LayerControl/LayerControl'
 import GeoSearch from '../../components/GeoSearch/GeoSearch'
 import ProjectFilters from '../../components/ProjectFilters/ProjectFilters'
+import ProjectExplorer from '../../components/ProjectExplorer/ProjectExplorer'
 import './ExplorePage.css'
 
 // ─── Default layer state ───────────────────────────────────────────────────────
@@ -70,16 +70,21 @@ async function fetchKenyaCounties() {
 
 const ExplorePage = () => {
   const globeRef = useRef()
+  // Store the pre-click POV so we can restore it on close
+  const prevPovRef = useRef(null)
 
   // ── Data state ──────────────────────────────────────────────────────────────
-  const [allProjects, setAllProjects]     = useState([])
-  const [projectRoutes, setProjectRoutes] = useState([])
-  const [kenyaCounties, setKenyaCounties] = useState([])   // GeoJSON features from globe fetch
-  const [loading, setLoading]             = useState(true)
-  const [error, setError]                 = useState(null)
+  const [allProjects, setAllProjects]         = useState([])
+  const [projectRoutes, setProjectRoutes]     = useState([])
+  const [kenyaCounties, setKenyaCounties]     = useState([])
+  const [loading, setLoading]                 = useState(true)
+  const [error, setError]                     = useState(null)
 
-  // ── UI / filter state ────────────────────────────────────────────────────────
-  const [selectedProject, setSelectedProject] = useState(null)
+  // ── Project detail state (for ProjectExplorer) ───────────────────────────
+  const [explorerProject, setExplorerProject] = useState(null)   // full project data
+  const [explorerLoading, setExplorerLoading] = useState(false)
+  const [explorerOpen, setExplorerOpen]       = useState(false)
+
   const [selectedCounty, setSelectedCounty]   = useState(null)   // GeoJSON feature
   const [statusFilter, setStatusFilter]       = useState('All')
   const [countyFilter, setCountyFilter]       = useState('All')
@@ -129,24 +134,64 @@ const ExplorePage = () => {
     setActiveLayers((prev) => ({ ...prev, [key]: value }))
   }, [])
 
-  // ── Project selection ─────────────────────────────────────────────────────────
-  const handleProjectSelect = useCallback((project) => {
-    setSelectedProject(project)
-    setSelectedCounty(null)
-    if (globeRef.current) {
-      globeRef.current.pointOfView(
-        { lat: project.Latitude, lng: project.Longitude, altitude: 0.6 },
-        1000
-      )
-    }
+  // ── Globe pan-left animation ─────────────────────────────────────────────
+  const panGlobeForExplorer = useCallback((projectLat, projectLng) => {
+    if (!globeRef.current) return
+    const currentPov = globeRef.current.pointOfView()
+    prevPovRef.current = currentPov
+    // Zoom out slightly and shift left so the globe sits in the left 48%
+    globeRef.current.pointOfView(
+      {
+        lat: projectLat ?? currentPov.lat,
+        lng: (projectLng ?? currentPov.lng) - 18,   // pan left
+        altitude: Math.min(currentPov.altitude + 0.35, 2.2),  // zoom out
+      },
+      900  // ms
+    )
   }, [])
 
-  const handleProjectClose = useCallback(() => setSelectedProject(null), [])
+  const restoreGlobeView = useCallback(() => {
+    if (!globeRef.current || !prevPovRef.current) return
+    globeRef.current.pointOfView(prevPovRef.current, 800)
+    prevPovRef.current = null
+  }, [])
+
+  // ── Project selection — fetch full data ────────────────────────────────────
+  const handleProjectSelect = useCallback(async (mapProject) => {
+    setSelectedCounty(null)
+    setExplorerOpen(true)
+    setExplorerLoading(true)
+    setExplorerProject(null)
+
+    // Animate globe
+    panGlobeForExplorer(mapProject.Latitude, mapProject.Longitude)
+
+    try {
+      const res = await fetch(`/api/v1/projects/${mapProject.ProjectId}`)
+      if (!res.ok) throw new Error('Project not found')
+      const json = await res.json()
+      // API returns { data: { ...project, media, locations, updates, milestones } }
+      setExplorerProject(json.data || json)
+    } catch (err) {
+      console.error('Failed to load full project:', err)
+      // Fall back to the map data we already have
+      setExplorerProject(mapProject)
+    } finally {
+      setExplorerLoading(false)
+    }
+  }, [panGlobeForExplorer])
+
+  const handleExplorerClose = useCallback(() => {
+    setExplorerOpen(false)
+    setExplorerProject(null)
+    restoreGlobeView()
+  }, [restoreGlobeView])
 
   // ── County selection (from globe polygon click) ──────────────────────────────
   const handleCountySelect = useCallback((feature) => {
     setSelectedCounty(feature)
-    setSelectedProject(null)
+    setExplorerOpen(false)
+    setExplorerProject(null)
   }, [])
 
   const handleCountyClose = useCallback(() => setSelectedCounty(null), [])
@@ -156,11 +201,6 @@ const ExplorePage = () => {
     setCountyFilter(countyName)
     setSelectedCounty(null)
   }, [])
-
-  // ── Route view (highlight route on globe) ───────────────────────────────────
-  const hasRoute = selectedProject
-    ? Boolean(selectedProject.HasRoute)
-    : false
 
   // ── Status filter change ─────────────────────────────────────────────────────
   const handleStatusChange = useCallback((status) => setStatusFilter(status), [])
@@ -174,7 +214,8 @@ const ExplorePage = () => {
     setStatusFilter('All')
     setCountyFilter('All')
     setSelectedCounty(null)
-    setSelectedProject(null)
+    setExplorerOpen(false)
+    setExplorerProject(null)
   }, [])
 
   const handleZoomIn = useCallback(() => {
@@ -222,7 +263,7 @@ const ExplorePage = () => {
         onCountySelect={handleCountySelect}
         viewMode={viewMode}
         activeLayers={activeLayers}
-        selectedProject={selectedProject}
+        selectedProject={explorerProject}
         selectedCounty={selectedCounty}
       />
 
@@ -271,11 +312,11 @@ const ExplorePage = () => {
         onViewProjects={handleViewCountyProjects}
       />
 
-      {/* Project slide-in panel (right) */}
-      <ProjectPanel
-        project={selectedProject}
-        onClose={handleProjectClose}
-        hasRoute={hasRoute}
+      {/* Project Explorer — immersive overlay with curved media arc */}
+      <ProjectExplorer
+        project={explorerProject}
+        loading={explorerLoading}
+        onClose={handleExplorerClose}
       />
 
       {/* Loading state */}

@@ -69,6 +69,13 @@ export async function getCategories() {
   return request('/categories')
 }
 
+export async function createCategory(data) {
+  return request('/categories', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
 /* ---- Auth Endpoints ---- */
 
 export async function login(email, password) {
@@ -82,7 +89,7 @@ export async function getProfile() {
   return request('/auth/me')
 }
 
-/* ---- Admin Endpoints ---- */
+/* ---- Projects Endpoints ---- */
 
 export async function getProjects(params = {}) {
   const searchParams = new URLSearchParams(params)
@@ -103,11 +110,65 @@ export async function updateProject(id, data) {
   })
 }
 
+export async function updateProjectStatus(id, publicationStatus, comment = '') {
+  return request(`/projects/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ publicationStatus, comment }),
+  })
+}
+
 export async function deleteProject(id) {
   return request(`/projects/${id}`, {
     method: 'DELETE',
   })
 }
+
+/* ---- Media Endpoints ---- */
+
+export async function getAllMedia() {
+  return request('/media')
+}
+
+export async function createMedia(projectId, data) {
+  return request(`/projects/${projectId}/media`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteMedia(projectId, mediaId) {
+  return request(`/projects/${projectId}/media/${mediaId}`, {
+    method: 'DELETE',
+  })
+}
+
+/* ---- Users Endpoints ---- */
+
+export async function getUsers() {
+  return request('/users')
+}
+
+export async function createUser(data) {
+  return request('/users', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function toggleUserStatus(id, isActive) {
+  return request(`/users/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isActive }),
+  })
+}
+
+export async function deleteUser(id) {
+  return request(`/users/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+/* ---- Health ---- */
 
 export async function getHealthStatus() {
   return request('/health')

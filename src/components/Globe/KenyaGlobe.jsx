@@ -1,54 +1,128 @@
-import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
-import Globe from 'react-globe.gl'
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  forwardRef,
+  useImperativeHandle,
+} from 'react'
+import * as Cesium from 'cesium'
+import 'cesium/Build/Cesium/Widgets/widgets.css'
 import { kenyaCities } from '../../data/kenyaCities.js'
 import './KenyaGlobe.css'
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ── Cesium Ion Token ─────────────────────────────────────────────────────────
+Cesium.Ion.defaultAccessToken =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIwYTYxMTc3OC1hNDVlLTQ5YjctYjE2Yi1hOTExMjE2OGFmYzYiLCJpZCI6NDY3OTYyLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODY3MDI3ODh9.dnXqhqHP2EeIkKZZ6FCllUsXiazvySFjobxwdXe1rFw'
 
-// geoBoundaries open-data Kenya counties (GADM-compatible, all 47 counties)
-const KENYA_COUNTIES_URL =
+// ── Initial Framing for Kenya ────────────────────────────────────────────────
+const KENYA_CENTER = {
+  lng: 37.9,
+  lat: 0.5,
+  height: 1750000, // meters above terrain - frames all of Kenya cleanly
+}
+
+// GeoJSON for Kenya's 47 counties
+const KENYA_COUNTIES_GEOJSON_URL =
   'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/CGAZ/geoBoundaries-KEN-ADM1_simplified.geojson'
 
-// Natural Earth world countries (already used by the app)
-const WORLD_COUNTRIES_URL =
-  'https://raw.githubusercontent.com/vasturiano/react-globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson'
-
-// Kenya bounding box (approx): lat -4.7 to 5.0, lng 33.9 to 41.9
-const KENYA_BOUNDS = { minLat: -4.7, maxLat: 5.0, minLng: 33.9, maxLng: 41.9 }
-
-// Altitude thresholds for progressive layer visibility
-const ALT = {
-  SHOW_COUNTIES: 2.2,      // counties appear
-  SHOW_CITIES_T1: 1.5,     // major city labels
-  SHOW_CITIES_T2: 0.9,     // town labels
-  SHOW_CITIES_T3: 0.5,     // small town labels
-  SHOW_ROUTES: 1.8,        // project routes
-}
-
-// Status colors aligned with design tokens
+// Status color constants
 const STATUS_COLORS = {
-  Ongoing:   '#FFC107',
+  Ongoing: '#FFC107',
   Completed: '#00E676',
-  Planned:   '#38BDF8',
+  Planned: '#38BDF8',
   Suspended: '#FF5252',
-  Cancelled: '#FF5252',
-  default:   '#00E676',
+  Draft: '#94A3B8',
 }
 
-function getStatusColor(status) {
-  return STATUS_COLORS[status] || STATUS_COLORS.default
+// Generate styled Lucide Map-Pin SVG billboard icon
+const locationPinCache = {}
+
+function createLucideMapPinSvg(colorHex, isSelected = false) {
+  const key = `${colorHex}_${isSelected ? 'sel' : 'norm'}`
+  if (locationPinCache[key]) return locationPinCache[key]
+
+  const cleanHex = colorHex.replace('#', '')
+  const size = isSelected ? 64 : 50
+  const glowRadius = isSelected ? 12 : 7
+  const strokeWidth = isSelected ? 2.2 : 1.8
+
+  const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24">
+  <defs>
+    <!-- Multi-layered Glow & Drop Shadow -->
+    <filter id="pin-glow-${cleanHex}-${isSelected ? '1' : '0'}" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="rgba(0,0,0,0.85)" />
+      <feDropShadow dx="0" dy="0" stdDeviation="${glowRadius}" flood-color="${colorHex}" flood-opacity="0.9" />
+    </filter>
+    
+    <!-- Rich Metallic Vertical Gradient Fill -->
+    <linearGradient id="pin-grad-${cleanHex}" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="${colorHex}" />
+      <stop offset="65%" stop-color="${colorHex}" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#060A10" />
+    </linearGradient>
+  </defs>
+
+  <g filter="url(#pin-glow-${cleanHex}-${isSelected ? '1' : '0'})">
+    <!-- Lucide Map-Pin Path -->
+    <path
+      d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"
+      fill="url(#pin-grad-${cleanHex})"
+      stroke="#FFFFFF"
+      stroke-width="${strokeWidth}"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <!-- Center Dot Indicator -->
+    <circle
+      cx="12"
+      cy="10"
+      r="3.2"
+      fill="#FFFFFF"
+      stroke="${colorHex}"
+      stroke-width="1.6"
+    />
+  </g>
+</svg>
+`
+  const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg.trim())}`
+  locationPinCache[key] = dataUrl
+  return dataUrl
 }
 
-// ─── Globe textures ───────────────────────────────────────────────────────────
+// Generate Ground Target / Beacon Circle
+function createGroundBeacon(colorHex) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 48
+  canvas.height = 48
+  const ctx = canvas.getContext('2d')
 
-const GLOBE_TEXTURES = {
-  day:   'https://unpkg.com/three-globe@2.41.12/example/img/earth-blue-marble.jpg',
-  night: 'https://unpkg.com/three-globe@2.41.12/example/img/earth-night.jpg',
+  // Ground pulse halo
+  ctx.beginPath()
+  ctx.arc(24, 24, 20, 0, 2 * Math.PI)
+  ctx.fillStyle = colorHex + '22'
+  ctx.fill()
+
+  // Middle ring
+  ctx.beginPath()
+  ctx.arc(24, 24, 12, 0, 2 * Math.PI)
+  ctx.strokeStyle = colorHex
+  ctx.lineWidth = 2
+  ctx.stroke()
+
+  // Center beacon dot
+  ctx.beginPath()
+  ctx.arc(24, 24, 4, 0, 2 * Math.PI)
+  ctx.fillStyle = '#FFFFFF'
+  ctx.fill()
+
+  return canvas.toDataURL()
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ── KenyaGlobe Component (Powered by CesiumJS) ──────────────────────────────
 
-const KenyaGlobe = React.forwardRef(function KenyaGlobe(
+const KenyaGlobe = forwardRef(function KenyaGlobe(
   {
     projects = [],
     projectRoutes = [],
@@ -56,389 +130,453 @@ const KenyaGlobe = React.forwardRef(function KenyaGlobe(
     onCountySelect,
     viewMode = 'night',
     activeLayers = {},
-    selectedCounty = null,
     selectedProject = null,
+    selectedCounty = null,
   },
   ref
 ) {
-  const globeRef = useRef()
-  const [dimensions, setDimensions] = useState({
-    width: window.innerWidth,
-    height: window.innerHeight,
-  })
-  const [worldCountries, setWorldCountries] = useState([])
-  const [kenyaCounties, setKenyaCounties] = useState([])
-  const [hoveredPolygon, setHoveredPolygon] = useState(null)
-  const [cameraAlt, setCameraAlt] = useState(1.8)
-  const [vrAvailable, setVrAvailable] = useState(false)
+  const containerRef = useRef(null)
+  const viewerRef = useRef(null)
+  const countiesDataSourceRef = useRef(null)
+  const projectsDataSourceRef = useRef(null)
+  const routesDataSourceRef = useRef(null)
+  const citiesDataSourceRef = useRef(null)
 
-  // ── Expose globe methods via forwarded ref ──────────────────────────────────
-  React.useImperativeHandle(ref, () => ({
-    pointOfView: (...args) => globeRef.current?.pointOfView(...args),
-    controls:    () => globeRef.current?.controls(),
-  }))
+  const [tooltip, setTooltip] = useState(null)
+  const [isGlobeReady, setIsGlobeReady] = useState(false)
 
-  // ── Detect VR capability ────────────────────────────────────────────────────
+  // ── 1. Initialize Cesium Viewer ──────────────────────────────────────────
   useEffect(() => {
-    if (navigator.xr) {
-      navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
-        setVrAvailable(supported)
-      }).catch(() => {})
-    }
-  }, [])
+    if (!containerRef.current || viewerRef.current) return
 
-  // ── Window resize ───────────────────────────────────────────────────────────
-  useEffect(() => {
-    const onResize = () =>
-      setDimensions({ width: window.innerWidth, height: window.innerHeight })
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
+    const viewer = new Cesium.Viewer(containerRef.current, {
+      animation: false,
+      baseLayerPicker: false,
+      fullscreenButton: false,
+      vrButton: false,
+      geocoder: false,
+      homeButton: false,
+      infoBox: false,
+      sceneModePicker: false,
+      selectionIndicator: false,
+      timeline: false,
+      navigationHelpButton: false,
+      navigationInstructionsInitiallyVisible: false,
+      scene3DOnly: true,
+      shouldAnimate: true,
+      terrain: Cesium.Terrain.fromWorldTerrain({
+        requestWaterMask: true,
+        requestVertexNormals: true,
+      }),
+    })
 
-  // ── Fetch world countries GeoJSON ───────────────────────────────────────────
-  useEffect(() => {
-    fetch(WORLD_COUNTRIES_URL)
-      .then((r) => r.json())
-      .then((geo) => setWorldCountries(geo.features || []))
-      .catch(() => setWorldCountries([]))
-  }, [])
+    viewerRef.current = viewer
 
-  // ── Fetch real Kenya 47-county GeoJSON ─────────────────────────────────────
-  useEffect(() => {
-    fetch(KENYA_COUNTIES_URL)
-      .then((r) => r.json())
-      .then((geo) => {
-        const features = (geo.features || []).map((f) => ({
-          ...f,
-          properties: {
-            ...f.properties,
-            // Normalise name field: geoBoundaries uses 'shapeName'
-            name: f.properties?.shapeName || f.properties?.name || 'Unknown',
-            _isKenyaCounty: true,
-          },
-        }))
-        setKenyaCounties(features)
-      })
-      .catch(() => {
-        // Fallback: load old approximate data so globe still works
-        import('../../data/kenyaCountiesGeoJson.js').then((m) => {
-          const features = (m.kenyaCountiesGeoJson?.features || []).map((f) => ({
-            ...f,
-            properties: { ...f.properties, _isKenyaCounty: true },
-          }))
-          setKenyaCounties(features)
+    // Configure globe visual styling
+    const scene = viewer.scene
+    const globe = scene.globe
+    globe.enableLighting = true
+    globe.depthTestAgainstTerrain = false
+    globe.baseColor = Cesium.Color.fromCssColorString('#060A10')
+
+    // Initial camera positioning directly over Kenya
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(
+        KENYA_CENTER.lng,
+        KENYA_CENTER.lat,
+        KENYA_CENTER.height
+      ),
+      orientation: {
+        heading: Cesium.Math.toRadians(0),
+        pitch: Cesium.Math.toRadians(-88),
+        roll: 0.0,
+      },
+      duration: 2.2,
+      easingFunction: Cesium.EasingFunction.QUADRATIC_OUT,
+    })
+
+    // Create DataSources
+    const countiesDS = new Cesium.CustomDataSource('kenya-counties')
+    const projectsDS = new Cesium.CustomDataSource('kenya-projects')
+    const routesDS = new Cesium.CustomDataSource('kenya-routes')
+    const citiesDS = new Cesium.CustomDataSource('kenya-cities')
+
+    viewer.dataSources.add(countiesDS)
+    viewer.dataSources.add(projectsDS)
+    viewer.dataSources.add(routesDS)
+    viewer.dataSources.add(citiesDS)
+
+    countiesDataSourceRef.current = countiesDS
+    projectsDataSourceRef.current = projectsDS
+    routesDataSourceRef.current = routesDS
+    citiesDataSourceRef.current = citiesDS
+
+    // Load Kenya 47 County Boundaries
+    Cesium.GeoJsonDataSource.load(KENYA_COUNTIES_GEOJSON_URL, {
+      stroke: Cesium.Color.fromCssColorString('rgba(255, 193, 7, 0.45)'),
+      fill: Cesium.Color.fromCssColorString('rgba(255, 193, 7, 0.04)'),
+      strokeWidth: 2,
+      clampToGround: true,
+    })
+      .then((geoJsonDS) => {
+        geoJsonDS.entities.values.forEach((entity) => {
+          const name =
+            entity.properties?.shapeName?.getValue() ||
+            entity.properties?.name?.getValue() ||
+            entity.name ||
+            'County'
+
+          if (entity.polygon) {
+            entity.polygon.material = Cesium.Color.fromCssColorString(
+              'rgba(255, 193, 7, 0.04)'
+            )
+            entity.polygon.outline = true
+            entity.polygon.outlineColor = Cesium.Color.fromCssColorString(
+              'rgba(255, 193, 7, 0.5)'
+            )
+            entity.polygon.outlineWidth = 2
+          }
+
+          entity._kenhaCounty = {
+            name,
+            properties: { shapeName: name, name },
+          }
+
+          countiesDS.entities.add(entity)
         })
       })
-  }, [])
-
-  // ── Camera altitude tracking ────────────────────────────────────────────────
-  useEffect(() => {
-    if (!globeRef.current) return
-    const controls = globeRef.current.controls()
-    if (!controls) return
-    const onControlChange = () => {
-      const pov = globeRef.current?.pointOfView()
-      if (pov?.altitude != null) setCameraAlt(pov.altitude)
-    }
-    controls.addEventListener('change', onControlChange)
-    return () => controls.removeEventListener('change', onControlChange)
-  }, [/* run after first render, globeRef stable */])
-
-  // ── Initial fly-to Kenya ────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!globeRef.current) return
-    const ctrl = globeRef.current.controls()
-    ctrl.autoRotate = true
-    ctrl.autoRotateSpeed = 0.6
-
-    const timer = setTimeout(() => {
-      if (!globeRef.current) return
-      globeRef.current.controls().autoRotate = false
-      globeRef.current.pointOfView({ lat: 0.5, lng: 37.9, altitude: 1.8 }, 2400)
-    }, 1600)
-    return () => clearTimeout(timer)
-  }, [])
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Layer visibility helpers
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  const layerOn = (key, defaultVal = true) =>
-    activeLayers[key] !== undefined ? activeLayers[key] : defaultVal
-
-  const showCounties    = layerOn('counties')     && cameraAlt < ALT.SHOW_COUNTIES
-  const showCitiesTier1 = layerOn('cities')       && cameraAlt < ALT.SHOW_CITIES_T1
-  const showCitiesTier2 = layerOn('cities')       && cameraAlt < ALT.SHOW_CITIES_T2
-  const showCitiesTier3 = layerOn('cities')       && cameraAlt < ALT.SHOW_CITIES_T3
-  const showRoutes      = layerOn('projectRoutes')&& cameraAlt < ALT.SHOW_ROUTES
-  const showProjects    = layerOn('projects')
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Polygon data: world + kenya counties (merged)
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  const polygonsData = useMemo(() => {
-    if (!layerOn('satellite', true) && !layerOn('kenyaBoundary') && !showCounties) return []
-
-    const world = worldCountries.filter((f) => {
-      // Remove the original Kenya polygon from world set – the county layer replaces it
-      const name = f.properties?.ADMIN || f.properties?.name || ''
-      return name !== 'Kenya'
-    })
-
-    const layers = layerOn('satellite', true) ? world : []
-
-    if (showCounties && kenyaCounties.length > 0) {
-      layers.push(...kenyaCounties)
-    }
-
-    return layers
-  }, [worldCountries, kenyaCounties, showCounties, activeLayers])
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Polygon colour callbacks
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  const polygonCapColor = useCallback((d) => {
-    const isCounty  = d.properties?._isKenyaCounty
-    const isHovered = hoveredPolygon === d
-    const isSelected = selectedCounty === d
-
-    if (isCounty) {
-      if (isSelected) return 'rgba(255, 193, 7, 0.28)'
-      if (isHovered)  return 'rgba(255, 193, 7, 0.18)'
-      return 'rgba(255, 193, 7, 0.06)'
-    }
-
-    const name = d.properties?.ADMIN || d.properties?.name || ''
-    if (name === 'Kenya') return 'rgba(0, 230, 118, 0.1)'
-    return 'rgba(255, 255, 255, 0.015)'
-  }, [hoveredPolygon, selectedCounty])
-
-  const polygonSideColor = useCallback((d) => {
-    const isCounty = d.properties?._isKenyaCounty
-    if (isCounty) return 'rgba(255, 193, 7, 0.15)'
-    const name = d.properties?.ADMIN || d.properties?.name || ''
-    if (name === 'Kenya') return 'rgba(0, 230, 118, 0.2)'
-    return 'rgba(255, 255, 255, 0.025)'
-  }, [])
-
-  const polygonStrokeColor = useCallback((d) => {
-    const isCounty  = d.properties?._isKenyaCounty
-    const isHovered = hoveredPolygon === d
-    const isSelected = selectedCounty === d
-
-    if (isCounty) {
-      if (isSelected) return '#FFC107'
-      if (isHovered)  return 'rgba(255, 193, 7, 0.9)'
-      return 'rgba(255, 193, 7, 0.45)'
-    }
-
-    const name = d.properties?.ADMIN || d.properties?.name || ''
-    if (name === 'Kenya') return '#00E676'
-    return 'rgba(255, 255, 255, 0.07)'
-  }, [hoveredPolygon, selectedCounty])
-
-  const polygonAltitude = useCallback((d) => {
-    const isCounty  = d.properties?._isKenyaCounty
-    const isSelected = selectedCounty === d
-    if (isCounty) return isSelected ? 0.025 : 0.012
-    const name = d.properties?.ADMIN || d.properties?.name || ''
-    if (name === 'Kenya') return 0.008
-    return 0.003
-  }, [selectedCounty])
-
-  const polygonLabel = useCallback(({ properties: p }) => {
-    if (!p?._isKenyaCounty) return null
-    const name = p.shapeName || p.name || 'County'
-    return `<div class="globe-county-tooltip">${name} County</div>`
-  }, [])
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // City labels
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  const cityLabelsData = useMemo(() => {
-    if (!layerOn('cities')) return []
-    if (showCitiesTier3) return kenyaCities
-    if (showCitiesTier2) return kenyaCities.filter((c) => c.tier <= 2)
-    if (showCitiesTier1) return kenyaCities.filter((c) => c.tier === 1)
-    return []
-  }, [showCitiesTier1, showCitiesTier2, showCitiesTier3, activeLayers])
-
-  const labelSize = useCallback((d) => {
-    const base = d.tier === 1 ? 0.5 : d.tier === 2 ? 0.38 : 0.28
-    // Larger when more zoomed in
-    const zoomBoost = Math.max(0, (1.5 - cameraAlt) * 0.3)
-    return base + zoomBoost
-  }, [cameraAlt])
-
-  const labelColor = useCallback((d) => {
-    if (d.tier === 1) return '#FFFFFF'
-    if (d.tier === 2) return 'rgba(255,255,255,0.85)'
-    return 'rgba(255,255,255,0.65)'
-  }, [])
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Project route paths
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  const pathsData = useMemo(() => {
-    if (!showRoutes || projectRoutes.length === 0) return []
-    return projectRoutes
-      .filter((r) => r.geoJson || r.GeoJson)
-      .map((r) => {
-        try {
-          const gj = typeof (r.geoJson || r.GeoJson) === 'string'
-            ? JSON.parse(r.geoJson || r.GeoJson)
-            : (r.geoJson || r.GeoJson)
-          const coords = gj?.coordinates || gj?.geometry?.coordinates || []
-          // Normalise: LineString → [[lng,lat],...], MultiLineString → flatten
-          const lineCoords = gj?.type === 'MultiLineString'
-            ? coords.flat()
-            : coords
-          return {
-            ...r,
-            _points: lineCoords.map(([lng, lat]) => ({ lat, lng })),
-          }
-        } catch {
-          return null
-        }
+      .catch((err) => {
+        console.warn('Could not load county boundary GeoJSON:', err)
       })
-      .filter(Boolean)
-  }, [projectRoutes, showRoutes])
 
-  const pathColor = useCallback((d) => {
-    const isSelected = d.projectId === selectedProject?.ProjectId
-    if (isSelected) return ['#FFC107', '#FFC107']
-    return ['rgba(0,230,118,0.8)', 'rgba(0,230,118,0.3)']
-  }, [selectedProject])
-
-  const pathStroke = useCallback((d) => {
-    const isSelected = d.projectId === selectedProject?.ProjectId
-    return isSelected ? 1.5 : 0.7
-  }, [selectedProject])
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Project HTML markers
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  const customMarker = useCallback((d) => {
-    const el = document.createElement('div')
-    const status = d.ProjectStatus || 'default'
-    const color  = getStatusColor(status)
-    const isSelected = selectedProject?.ProjectId === d.ProjectId
-
-    el.className = `globe-marker-pulse ${status.toLowerCase()} ${isSelected ? 'selected' : ''}`
-    el.style.setProperty('--marker-color', color)
-    el.style.setProperty('--marker-color-dim', color + '44')
-
-    el.setAttribute('role', 'button')
-    el.setAttribute('aria-label', `Project: ${d.ProjectName || 'Unknown'}`)
-
-    const tooltip = document.createElement('div')
-    tooltip.className = 'globe-marker-tooltip'
-    tooltip.textContent = d.ProjectName || d.projectName || 'Project'
-    el.appendChild(tooltip)
-
-    el.addEventListener('click', (e) => {
-      e.stopPropagation()
-      onProjectSelect?.(d)
+    // Load Kenyan Cities and Towns
+    kenyaCities.forEach((city) => {
+      citiesDS.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(city.lng, city.lat, 200),
+        point: {
+          pixelSize: city.tier === 1 ? 5 : 3,
+          color: Cesium.Color.fromCssColorString('rgba(56, 189, 248, 0.8)'),
+          outlineColor: Cesium.Color.fromCssColorString('rgba(0,0,0,0.8)'),
+          outlineWidth: 1,
+          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(
+            0,
+            city.tier === 1 ? 4000000 : city.tier === 2 ? 1800000 : 900000
+          ),
+        },
+        label: {
+          text: city.name,
+          font: '11px "Inter", sans-serif',
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          fillColor: Cesium.Color.fromCssColorString('#E2E8F0'),
+          outlineColor: Cesium.Color.fromCssColorString('#0A101A'),
+          outlineWidth: 2,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+          pixelOffset: new Cesium.Cartesian2(0, -8),
+          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(
+            0,
+            city.tier === 1 ? 2500000 : city.tier === 2 ? 1200000 : 600000
+          ),
+        },
+      })
     })
-    return el
-  }, [selectedProject, onProjectSelect])
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // County polygon click / hover
-  // ─────────────────────────────────────────────────────────────────────────────
+    // Screen-space interaction (click & hover)
+    const handler = new Cesium.ScreenSpaceEventHandler(scene.canvas)
 
-  const handlePolygonClick = useCallback((polygon) => {
-    if (!polygon?.properties?._isKenyaCounty) return
-    onCountySelect?.(polygon)
-
-    // Fly to county centroid
-    if (globeRef.current) {
-      const coords = polygon.geometry?.coordinates?.[0]
-      if (coords && coords.length > 0) {
-        const lat = coords.reduce((s, c) => s + c[1], 0) / coords.length
-        const lng = coords.reduce((s, c) => s + c[0], 0) / coords.length
-        globeRef.current.pointOfView({ lat, lng, altitude: 0.6 }, 1200)
+    handler.setInputAction((movement) => {
+      const picked = scene.pick(movement.position)
+      if (Cesium.defined(picked) && picked.id) {
+        const entity = picked.id
+        if (entity._kenhaProject) {
+          onProjectSelect?.(entity._kenhaProject)
+          return
+        }
+        if (entity._kenhaCounty) {
+          onCountySelect?.(entity._kenhaCounty)
+          return
+        }
       }
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK)
+
+    handler.setInputAction((movement) => {
+      const picked = scene.pick(movement.endPosition)
+      if (Cesium.defined(picked) && picked.id) {
+        const entity = picked.id
+        if (entity._kenhaProject) {
+          setTooltip({
+            x: movement.endPosition.x,
+            y: movement.endPosition.y - 45,
+            title: entity._kenhaProject.ProjectName,
+            subtitle: `${entity._kenhaProject.County || 'Kenya'} · ${entity._kenhaProject.ProjectStatus || 'Ongoing'}`,
+          })
+          containerRef.current.style.cursor = 'pointer'
+          return
+        }
+        if (entity._kenhaCounty) {
+          setTooltip({
+            x: movement.endPosition.x,
+            y: movement.endPosition.y - 30,
+            title: `${entity._kenhaCounty.name} County`,
+            subtitle: 'Click to explore projects',
+          })
+          containerRef.current.style.cursor = 'pointer'
+          return
+        }
+      }
+      setTooltip(null)
+      if (containerRef.current) containerRef.current.style.cursor = 'default'
+    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE)
+
+    setIsGlobeReady(true)
+
+    return () => {
+      handler.destroy()
+      if (!viewer.isDestroyed()) {
+        viewer.destroy()
+      }
+      viewerRef.current = null
     }
-  }, [onCountySelect])
+  }, [onProjectSelect, onCountySelect])
 
-  const handlePolygonHover = useCallback((polygon) => {
-    setHoveredPolygon(polygon?.properties?._isKenyaCounty ? polygon : null)
-    document.body.style.cursor = polygon?.properties?._isKenyaCounty ? 'pointer' : 'default'
-  }, [])
+  // ── 2. Update Project Markers (Hovering Lucide Map-Pin SVG Billboard) ─────
+  useEffect(() => {
+    const ds = projectsDataSourceRef.current
+    if (!ds) return
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Render
-  // ─────────────────────────────────────────────────────────────────────────────
+    ds.entities.removeAll()
+
+    projects.forEach((p, idx) => {
+      const lat = Number(p.Latitude)
+      const lng = Number(p.Longitude)
+      if (isNaN(lat) || isNaN(lng)) return
+
+      const isSelected =
+        selectedProject &&
+        (selectedProject.ProjectId === p.ProjectId ||
+          selectedProject.ProjectCode === p.ProjectCode)
+
+      const status = p.ProjectStatus || p.Status || 'Ongoing'
+      const colorHex = STATUS_COLORS[status] || '#00E676'
+      const pinSvg = createLucideMapPinSvg(colorHex, isSelected)
+      const groundBeaconImage = createGroundBeacon(colorHex)
+
+      // Hovering vertical animation offset
+      const baseAltitude = isSelected ? 4200 : 3000
+      const phase = (idx * 1.3) % (Math.PI * 2)
+
+      const hoveringPosition = new Cesium.CallbackProperty(() => {
+        const time = Date.now() * 0.0025
+        const bob = Math.sin(time + phase) * (isSelected ? 900 : 600)
+        return Cesium.Cartesian3.fromDegrees(lng, lat, baseAltitude + bob)
+      }, false)
+
+      const groundPosition = Cesium.Cartesian3.fromDegrees(lng, lat, 20)
+
+      // 1. Ground Beacon Target
+      ds.entities.add({
+        position: groundPosition,
+        billboard: {
+          image: groundBeaconImage,
+          width: 32,
+          height: 32,
+          verticalOrigin: Cesium.VerticalOrigin.CENTER,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+      })
+
+      // 2. Vertical Tether Line connecting ground beacon to floating pin
+      ds.entities.add({
+        polyline: {
+          positions: new Cesium.CallbackProperty(() => {
+            const time = Date.now() * 0.0025
+            const bob = Math.sin(time + phase) * (isSelected ? 900 : 600)
+            return [
+              groundPosition,
+              Cesium.Cartesian3.fromDegrees(lng, lat, baseAltitude + bob),
+            ]
+          }, false),
+          width: isSelected ? 3 : 2,
+          material: new Cesium.PolylineGlowMaterialProperty({
+            glowPower: 0.3,
+            color: Cesium.Color.fromCssColorString(colorHex),
+          }),
+        },
+      })
+
+      // 3. Hovering Lucide Map-Pin SVG Icon
+      ds.entities.add({
+        position: hoveringPosition,
+        billboard: {
+          image: pinSvg,
+          width: isSelected ? 60 : 46,
+          height: isSelected ? 60 : 46,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM, // Exact pin tip touches bottom
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+        label: {
+          text: p.ProjectCode || p.ProjectName,
+          font: isSelected ? 'bold 12px "Space Grotesk", sans-serif' : '11px "Inter", sans-serif',
+          fillColor: Cesium.Color.fromCssColorString('#FFFFFF'),
+          backgroundColor: Cesium.Color.fromCssColorString('rgba(10, 16, 26, 0.9)'),
+          showBackground: true,
+          backgroundPadding: new Cesium.Cartesian2(6, 4),
+          outlineColor: Cesium.Color.fromCssColorString(colorHex),
+          outlineWidth: 2,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          pixelOffset: new Cesium.Cartesian2(0, isSelected ? -68 : -52),
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(
+            0,
+            1600000
+          ),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+        _kenhaProject: p,
+      })
+    })
+  }, [projects, selectedProject])
+
+  // ── 3. Update Project Routes ──────────────────────────────────────────────
+  useEffect(() => {
+    const ds = routesDataSourceRef.current
+    if (!ds) return
+
+    ds.entities.removeAll()
+
+    projectRoutes.forEach((route) => {
+      if (!route?.GeoJson) return
+      try {
+        const parsed =
+          typeof route.GeoJson === 'string'
+            ? JSON.parse(route.GeoJson)
+            : route.GeoJson
+
+        let coords = []
+        if (parsed.type === 'LineString' && Array.isArray(parsed.coordinates)) {
+          coords = parsed.coordinates
+        } else if (
+          parsed.type === 'Feature' &&
+          parsed.geometry?.coordinates
+        ) {
+          coords = parsed.geometry.coordinates
+        }
+
+        if (coords.length < 2) return
+
+        const flatPositions = coords.flatMap(([lng, lat, alt = 50]) => [
+          lng,
+          lat,
+          alt,
+        ])
+        const positions =
+          Cesium.Cartesian3.fromDegreesArrayHeights(flatPositions)
+
+        ds.entities.add({
+          polyline: {
+            positions,
+            width: 4,
+            material: new Cesium.PolylineGlowMaterialProperty({
+              glowPower: 0.25,
+              color: Cesium.Color.fromCssColorString('rgba(0, 230, 118, 0.85)'),
+            }),
+            clampToGround: true,
+          },
+        })
+      } catch (err) {
+        console.warn('Error parsing project route GeoJSON:', err)
+      }
+    })
+  }, [projectRoutes])
+
+  // ── 4. Manage Layer Visibility ────────────────────────────────────────────
+  useEffect(() => {
+    if (countiesDataSourceRef.current) {
+      countiesDataSourceRef.current.show = activeLayers.counties !== false
+    }
+    if (citiesDataSourceRef.current) {
+      citiesDataSourceRef.current.show = activeLayers.cities !== false
+    }
+    if (projectsDataSourceRef.current) {
+      projectsDataSourceRef.current.show = activeLayers.projects !== false
+    }
+    if (routesDataSourceRef.current) {
+      routesDataSourceRef.current.show = activeLayers.projectRoutes !== false
+    }
+  }, [activeLayers])
+
+  // ── 5. Expose Imperative Controls for ExplorePage ─────────────────────────
+  useImperativeHandle(
+    ref,
+    () => ({
+      pointOfView: (pov, durationMs = 1000) => {
+        const viewer = viewerRef.current
+        if (!viewer) return { lat: 0.5, lng: 37.9, altitude: 1.8 }
+
+        if (!pov) {
+          // Read current POV
+          const camera = viewer.camera
+          const carto = Cesium.Cartographic.fromCartesian(camera.position)
+          return {
+            lat: Cesium.Math.toDegrees(carto.latitude),
+            lng: Cesium.Math.toDegrees(carto.longitude),
+            altitude: carto.height / 1000000,
+          }
+        }
+
+        // Convert normalized altitude / height
+        let targetHeight = 1600000
+        if (pov.altitude !== undefined) {
+          targetHeight =
+            pov.altitude > 100 ? pov.altitude : pov.altitude * 1000000
+        }
+
+        viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(
+            pov.lng ?? KENYA_CENTER.lng,
+            pov.lat ?? KENYA_CENTER.lat,
+            targetHeight
+          ),
+          duration: (durationMs || 1000) / 1000,
+          easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT,
+        })
+      },
+
+      zoomIn: () => {
+        viewerRef.current?.camera.zoomIn(350000)
+      },
+
+      zoomOut: () => {
+        viewerRef.current?.camera.zoomOut(350000)
+      },
+
+      resetView: () => {
+        viewerRef.current?.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(
+            KENYA_CENTER.lng,
+            KENYA_CENTER.lat,
+            KENYA_CENTER.height
+          ),
+          duration: 1.5,
+        })
+      },
+    }),
+    []
+  )
 
   return (
-    <div className="globe-container">
-      <Globe
-        ref={globeRef}
-        width={dimensions.width}
-        height={dimensions.height}
+    <div className="kenya-cesium-wrapper">
+      <div ref={containerRef} className="cesium-container" />
 
-        // ── Earth imagery ──────────────────────────────────────────────
-        globeImageUrl={GLOBE_TEXTURES[viewMode] || GLOBE_TEXTURES.night}
-        bumpImageUrl="https://unpkg.com/three-globe@2.41.12/example/img/earth-topology.png"
-        backgroundColor="rgba(0,0,0,0)"
-        atmosphereColor={viewMode === 'day' ? '#38BDF8' : '#00E676'}
-        atmosphereAltitude={0.18}
-
-        // ── Polygons (countries + kenya counties) ──────────────────────
-        polygonsData={polygonsData}
-        polygonCapColor={polygonCapColor}
-        polygonSideColor={polygonSideColor}
-        polygonStrokeColor={polygonStrokeColor}
-        polygonAltitude={polygonAltitude}
-        polygonLabel={polygonLabel}
-        onPolygonClick={handlePolygonClick}
-        onPolygonHover={handlePolygonHover}
-        polygonsTransitionDuration={400}
-
-        // ── City / town labels ─────────────────────────────────────────
-        labelsData={cityLabelsData}
-        labelLat={(d) => d.lat}
-        labelLng={(d) => d.lng}
-        labelText={(d) => d.name}
-        labelSize={labelSize}
-        labelColor={labelColor}
-        labelResolution={2}
-        labelAltitude={0.005}
-        labelDotRadius={0.25}
-        labelDotOrientation={() => 'bottom'}
-        labelsTransitionDuration={300}
-
-        // ── Project route paths ────────────────────────────────────────
-        pathsData={pathsData}
-        pathPoints={(d) => d._points}
-        pathPointLat={(p) => p.lat}
-        pathPointLng={(p) => p.lng}
-        pathColor={pathColor}
-        pathStroke={pathStroke}
-        pathDashLength={0.02}
-        pathDashGap={0.004}
-        pathDashAnimateTime={10000}
-        pathsTransitionDuration={400}
-
-        // ── Project HTML markers ────────────────────────────────────────
-        htmlElementsData={showProjects ? projects : []}
-        htmlLat="Latitude"
-        htmlLng="Longitude"
-        htmlElement={customMarker}
-        htmlTransitionDuration={300}
-      />
-
-      {/* VR Enter Button */}
-      {vrAvailable && (
-        <div className="vr-enter-badge" title="Enter Immersive VR Mode">
-          <span className="vr-enter-icon">⬡</span>
-          <span>ENTER VR</span>
+      {/* Floating Hover Tooltip */}
+      {tooltip && (
+        <div
+          className="cesium-tooltip"
+          style={{ left: `${tooltip.x}px`, top: `${tooltip.y}px` }}
+        >
+          <div className="tooltip-title">{tooltip.title}</div>
+          {tooltip.subtitle && (
+            <div className="tooltip-subtitle">{tooltip.subtitle}</div>
+          )}
         </div>
       )}
     </div>
