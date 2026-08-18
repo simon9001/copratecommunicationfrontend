@@ -4,8 +4,10 @@ import {
   LayoutDashboard, FolderOpen, Image as ImageIcon, Tag, Users, LogOut,
   Plus, Edit, Trash2, Globe, Search, CheckCircle2, Clock, AlertCircle,
   Play, Eye, ExternalLink, X, RefreshCw, Shield, MapPin, DollarSign,
-  Ruler, Layers, Video, Filter, ArrowUpRight, Upload, Film, FileText, Check
+  Ruler, Layers, Video, Filter, ArrowUpRight, Upload, Film, FileText, Check,
+  Sun, Moon
 } from 'lucide-react'
+import { useTheme } from '../../context/ThemeContext'
 import { useAuth } from '../../context/AuthContext'
 import {
   getProjects, createProject, updateProject, updateProjectStatus, deleteProject,
@@ -67,6 +69,7 @@ const SAMPLE_MEDIA_PRESETS = [
 
 const AdminDashboard = () => {
   const { user, logout } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
   const fileInputRef = useRef(null)
 
@@ -604,6 +607,14 @@ const AdminDashboard = () => {
           </div>
 
           <div className="header-actions">
+            <button
+              className="btn-refresh"
+              onClick={toggleTheme}
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
             <button className="btn-refresh" onClick={loadDashboardData} disabled={loading} title="Refresh Data">
               <RefreshCw size={16} className={loading ? 'spinning' : ''} />
             </button>

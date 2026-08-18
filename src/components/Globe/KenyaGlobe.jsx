@@ -9,6 +9,7 @@ import React, {
 import * as Cesium from 'cesium'
 import 'cesium/Build/Cesium/Widgets/widgets.css'
 import { kenyaCities } from '../../data/kenyaCities.js'
+import { WORLD_COUNTRIES_GEOJSON_URL, countryCentroids } from '../../data/worldCountriesData.js'
 import './KenyaGlobe.css'
 
 // ── Cesium Ion Token ─────────────────────────────────────────────────────────
@@ -26,62 +27,46 @@ const KENYA_CENTER = {
 const KENYA_COUNTIES_GEOJSON_URL =
   'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/CGAZ/geoBoundaries-KEN-ADM1_simplified.geojson'
 
-// Status color constants
+// Status color constants - KeNHA Brand
 const STATUS_COLORS = {
-  Ongoing: '#FFC107',
+  Ongoing: '#FDB813',
   Completed: '#00E676',
   Planned: '#38BDF8',
   Suspended: '#FF5252',
   Draft: '#94A3B8',
 }
 
-// Generate styled Lucide Map-Pin SVG billboard icon
+// Generate clean minimalist Map-Pin SVG billboard icon
 const locationPinCache = {}
 
 function createLucideMapPinSvg(colorHex, isSelected = false) {
   const key = `${colorHex}_${isSelected ? 'sel' : 'norm'}`
   if (locationPinCache[key]) return locationPinCache[key]
 
-  const cleanHex = colorHex.replace('#', '')
-  const size = isSelected ? 64 : 50
-  const glowRadius = isSelected ? 12 : 7
-  const strokeWidth = isSelected ? 2.2 : 1.8
+  const size = isSelected ? 48 : 36
+  const strokeWidth = 2
 
   const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24">
   <defs>
-    <!-- Multi-layered Glow & Drop Shadow -->
-    <filter id="pin-glow-${cleanHex}-${isSelected ? '1' : '0'}" x="-40%" y="-40%" width="180%" height="180%">
-      <feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="rgba(0,0,0,0.85)" />
-      <feDropShadow dx="0" dy="0" stdDeviation="${glowRadius}" flood-color="${colorHex}" flood-opacity="0.9" />
+    <filter id="pin-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="rgba(0,0,0,0.5)" />
     </filter>
-    
-    <!-- Rich Metallic Vertical Gradient Fill -->
-    <linearGradient id="pin-grad-${cleanHex}" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="${colorHex}" />
-      <stop offset="65%" stop-color="${colorHex}" stop-opacity="0.9" />
-      <stop offset="100%" stop-color="#060A10" />
-    </linearGradient>
   </defs>
-
-  <g filter="url(#pin-glow-${cleanHex}-${isSelected ? '1' : '0'})">
-    <!-- Lucide Map-Pin Path -->
+  <g filter="url(#pin-shadow)">
     <path
       d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"
-      fill="url(#pin-grad-${cleanHex})"
-      stroke="#FFFFFF"
+      fill="#0B121E"
+      stroke="${colorHex}"
       stroke-width="${strokeWidth}"
       stroke-linecap="round"
       stroke-linejoin="round"
     />
-    <!-- Center Dot Indicator -->
     <circle
       cx="12"
       cy="10"
-      r="3.2"
-      fill="#FFFFFF"
-      stroke="${colorHex}"
-      stroke-width="1.6"
+      r="3"
+      fill="${colorHex}"
     />
   </g>
 </svg>
@@ -91,29 +76,23 @@ function createLucideMapPinSvg(colorHex, isSelected = false) {
   return dataUrl
 }
 
-// Generate Ground Target / Beacon Circle
+// Generate Ground Target Circle
 function createGroundBeacon(colorHex) {
   const canvas = document.createElement('canvas')
-  canvas.width = 48
-  canvas.height = 48
+  canvas.width = 32
+  canvas.height = 32
   const ctx = canvas.getContext('2d')
 
-  // Ground pulse halo
+  // Clean ring
   ctx.beginPath()
-  ctx.arc(24, 24, 20, 0, 2 * Math.PI)
-  ctx.fillStyle = colorHex + '22'
-  ctx.fill()
-
-  // Middle ring
-  ctx.beginPath()
-  ctx.arc(24, 24, 12, 0, 2 * Math.PI)
+  ctx.arc(16, 16, 8, 0, 2 * Math.PI)
   ctx.strokeStyle = colorHex
-  ctx.lineWidth = 2
+  ctx.lineWidth = 1.5
   ctx.stroke()
 
-  // Center beacon dot
+  // Center dot
   ctx.beginPath()
-  ctx.arc(24, 24, 4, 0, 2 * Math.PI)
+  ctx.arc(16, 16, 3, 0, 2 * Math.PI)
   ctx.fillStyle = '#FFFFFF'
   ctx.fill()
 
@@ -137,6 +116,8 @@ const KenyaGlobe = forwardRef(function KenyaGlobe(
 ) {
   const containerRef = useRef(null)
   const viewerRef = useRef(null)
+  const countriesDataSourceRef = useRef(null)
+  const countryLabelsDataSourceRef = useRef(null)
   const countiesDataSourceRef = useRef(null)
   const projectsDataSourceRef = useRef(null)
   const routesDataSourceRef = useRef(null)
@@ -196,26 +177,120 @@ const KenyaGlobe = forwardRef(function KenyaGlobe(
     })
 
     // Create DataSources
+    const countriesDS = new Cesium.CustomDataSource('world-countries')
+    const countryLabelsDS = new Cesium.CustomDataSource('country-labels')
     const countiesDS = new Cesium.CustomDataSource('kenya-counties')
     const projectsDS = new Cesium.CustomDataSource('kenya-projects')
     const routesDS = new Cesium.CustomDataSource('kenya-routes')
     const citiesDS = new Cesium.CustomDataSource('kenya-cities')
 
+    viewer.dataSources.add(countriesDS)
+    viewer.dataSources.add(countryLabelsDS)
     viewer.dataSources.add(countiesDS)
     viewer.dataSources.add(projectsDS)
     viewer.dataSources.add(routesDS)
     viewer.dataSources.add(citiesDS)
 
+    countriesDataSourceRef.current = countriesDS
+    countryLabelsDataSourceRef.current = countryLabelsDS
     countiesDataSourceRef.current = countiesDS
     projectsDataSourceRef.current = projectsDS
     routesDataSourceRef.current = routesDS
     citiesDataSourceRef.current = citiesDS
 
+    // Load World & African Country Boundaries
+    Cesium.GeoJsonDataSource.load(WORLD_COUNTRIES_GEOJSON_URL, {
+      stroke: Cesium.Color.fromCssColorString('rgba(226, 232, 240, 0.35)'),
+      fill: Cesium.Color.fromCssColorString('rgba(255, 255, 255, 0.01)'),
+      strokeWidth: 1.2,
+      clampToGround: true,
+    })
+      .then((geoJsonDS) => {
+        // Process in chunks to avoid RangeError: Invalid array length on large GeoJSONs
+        const entities = [...geoJsonDS.entities.values]
+        const CHUNK = 30
+        let i = 0
+
+        function processChunk() {
+          const end = Math.min(i + CHUNK, entities.length)
+          for (; i < end; i++) {
+            try {
+              const entity = entities[i]
+              const countryName =
+                entity.properties?.name?.getValue() ||
+                entity.properties?.ADMIN?.getValue() ||
+                entity.properties?.NAME?.getValue() ||
+                entity.name ||
+                'Country'
+
+              const isKenya = countryName.toLowerCase().includes('kenya')
+
+              if (entity.polygon) {
+                entity.polygon.material = Cesium.Color.fromCssColorString(
+                  isKenya ? 'rgba(253, 184, 19, 0.04)' : 'rgba(255, 255, 255, 0.01)'
+                )
+                entity.polygon.outline = true
+                entity.polygon.outlineColor = Cesium.Color.fromCssColorString(
+                  isKenya ? 'rgba(253, 184, 19, 0.85)' : 'rgba(226, 232, 240, 0.35)'
+                )
+                entity.polygon.outlineWidth = isKenya ? 2.5 : 1.2
+              }
+
+              entity._countryName = countryName
+              countriesDS.entities.add(entity)
+            } catch (_) {
+              // Skip malformed entities silently
+            }
+          }
+          if (i < entities.length) {
+            setTimeout(processChunk, 0) // yield to browser between chunks
+          }
+        }
+
+        processChunk()
+      })
+      .catch((err) => {
+        console.warn('Could not load world countries boundary GeoJSON:', err)
+      })
+
+    // Load Country Names / Centroid Labels
+    countryCentroids.forEach((c) => {
+      const isKenya = !!c.isHost
+      countryLabelsDS.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(c.lng, c.lat, 400),
+        point: {
+          pixelSize: isKenya ? 5 : 3,
+          color: Cesium.Color.fromCssColorString(isKenya ? '#FDB813' : 'rgba(226, 232, 240, 0.75)'),
+          outlineColor: Cesium.Color.fromCssColorString('rgba(6, 10, 16, 0.9)'),
+          outlineWidth: 1.5,
+          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(
+            0,
+            c.tier === 1 ? 16000000 : c.tier === 2 ? 24000000 : 35000000
+          ),
+        },
+        label: {
+          text: c.name,
+          font: isKenya ? 'bold 13px "Space Grotesk", sans-serif' : '10px "Space Grotesk", sans-serif',
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          fillColor: Cesium.Color.fromCssColorString(isKenya ? '#FDB813' : '#CBD5E1'),
+          outlineColor: Cesium.Color.fromCssColorString('#060A10'),
+          outlineWidth: 2.5,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+          pixelOffset: new Cesium.Cartesian2(0, -6),
+          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(
+            0,
+            c.tier === 1 ? 14000000 : c.tier === 2 ? 22000000 : 32000000
+          ),
+        },
+        _countryName: c.name,
+      })
+    })
+
     // Load Kenya 47 County Boundaries
     Cesium.GeoJsonDataSource.load(KENYA_COUNTIES_GEOJSON_URL, {
-      stroke: Cesium.Color.fromCssColorString('rgba(255, 193, 7, 0.45)'),
-      fill: Cesium.Color.fromCssColorString('rgba(255, 193, 7, 0.04)'),
-      strokeWidth: 2,
+      stroke: Cesium.Color.fromCssColorString('rgba(253, 184, 19, 0.45)'),
+      fill: Cesium.Color.fromCssColorString('rgba(253, 184, 19, 0.03)'),
+      strokeWidth: 1.5,
       clampToGround: true,
     })
       .then((geoJsonDS) => {
@@ -228,13 +303,13 @@ const KenyaGlobe = forwardRef(function KenyaGlobe(
 
           if (entity.polygon) {
             entity.polygon.material = Cesium.Color.fromCssColorString(
-              'rgba(255, 193, 7, 0.04)'
+              'rgba(253, 184, 19, 0.03)'
             )
             entity.polygon.outline = true
             entity.polygon.outlineColor = Cesium.Color.fromCssColorString(
-              'rgba(255, 193, 7, 0.5)'
+              'rgba(253, 184, 19, 0.45)'
             )
-            entity.polygon.outlineWidth = 2
+            entity.polygon.outlineWidth = 1.5
           }
 
           entity._kenhaCounty = {
@@ -322,6 +397,16 @@ const KenyaGlobe = forwardRef(function KenyaGlobe(
           containerRef.current.style.cursor = 'pointer'
           return
         }
+        if (entity._countryName) {
+          setTooltip({
+            x: movement.endPosition.x,
+            y: movement.endPosition.y - 30,
+            title: entity._countryName,
+            subtitle: 'Country Territory',
+          })
+          containerRef.current.style.cursor = 'default'
+          return
+        }
       }
       setTooltip(null)
       if (containerRef.current) containerRef.current.style.cursor = 'default'
@@ -388,18 +473,15 @@ const KenyaGlobe = forwardRef(function KenyaGlobe(
       ds.entities.add({
         polyline: {
           positions: new Cesium.CallbackProperty(() => {
-            const time = Date.now() * 0.0025
-            const bob = Math.sin(time + phase) * (isSelected ? 900 : 600)
+            const time = Date.now() * 0.002
+            const bob = Math.sin(time + phase) * (isSelected ? 500 : 350)
             return [
               groundPosition,
               Cesium.Cartesian3.fromDegrees(lng, lat, baseAltitude + bob),
             ]
           }, false),
-          width: isSelected ? 3 : 2,
-          material: new Cesium.PolylineGlowMaterialProperty({
-            glowPower: 0.3,
-            color: Cesium.Color.fromCssColorString(colorHex),
-          }),
+          width: isSelected ? 2 : 1.2,
+          material: Cesium.Color.fromCssColorString(isSelected ? '#FDB813' : 'rgba(255, 255, 255, 0.4)'),
         },
       })
 
@@ -408,22 +490,22 @@ const KenyaGlobe = forwardRef(function KenyaGlobe(
         position: hoveringPosition,
         billboard: {
           image: pinSvg,
-          width: isSelected ? 60 : 46,
-          height: isSelected ? 60 : 46,
-          verticalOrigin: Cesium.VerticalOrigin.BOTTOM, // Exact pin tip touches bottom
+          width: isSelected ? 48 : 36,
+          height: isSelected ? 48 : 36,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
         label: {
           text: p.ProjectCode || p.ProjectName,
           font: isSelected ? 'bold 12px "Space Grotesk", sans-serif' : '11px "Inter", sans-serif',
           fillColor: Cesium.Color.fromCssColorString('#FFFFFF'),
-          backgroundColor: Cesium.Color.fromCssColorString('rgba(10, 16, 26, 0.9)'),
+          backgroundColor: Cesium.Color.fromCssColorString('rgba(11, 18, 30, 0.9)'),
           showBackground: true,
           backgroundPadding: new Cesium.Cartesian2(6, 4),
-          outlineColor: Cesium.Color.fromCssColorString(colorHex),
-          outlineWidth: 2,
+          outlineColor: Cesium.Color.fromCssColorString('rgba(255, 255, 255, 0.2)'),
+          outlineWidth: 1,
           style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          pixelOffset: new Cesium.Cartesian2(0, isSelected ? -68 : -52),
+          pixelOffset: new Cesium.Cartesian2(0, isSelected ? -56 : -42),
           verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
           distanceDisplayCondition: new Cesium.DistanceDisplayCondition(
             0,
@@ -474,11 +556,8 @@ const KenyaGlobe = forwardRef(function KenyaGlobe(
         ds.entities.add({
           polyline: {
             positions,
-            width: 4,
-            material: new Cesium.PolylineGlowMaterialProperty({
-              glowPower: 0.25,
-              color: Cesium.Color.fromCssColorString('rgba(0, 230, 118, 0.85)'),
-            }),
+            width: 2.5,
+            material: Cesium.Color.fromCssColorString('#FDB813'),
             clampToGround: true,
           },
         })
@@ -490,6 +569,12 @@ const KenyaGlobe = forwardRef(function KenyaGlobe(
 
   // ── 4. Manage Layer Visibility ────────────────────────────────────────────
   useEffect(() => {
+    if (countriesDataSourceRef.current) {
+      countriesDataSourceRef.current.show = activeLayers.countryBoundaries !== false
+    }
+    if (countryLabelsDataSourceRef.current) {
+      countryLabelsDataSourceRef.current.show = activeLayers.countryLabels !== false
+    }
     if (countiesDataSourceRef.current) {
       countiesDataSourceRef.current.show = activeLayers.counties !== false
     }

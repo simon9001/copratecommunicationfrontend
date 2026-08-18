@@ -12,17 +12,19 @@ import './ExplorePage.css'
 // ─── Default layer state ───────────────────────────────────────────────────────
 
 const DEFAULT_LAYERS = {
-  satellite:     true,
-  kenyaBoundary: true,
-  counties:      true,
-  cities:        true,
-  majorRoads:    false,
-  projects:      true,
-  projectRoutes: true,
-  subCounties:   false,
-  rivers:        false,
-  terrain:       false,
-  soil:          false,
+  satellite:         true,
+  countryBoundaries: true,
+  countryLabels:     true,
+  kenyaBoundary:     true,
+  counties:          true,
+  cities:            true,
+  majorRoads:        false,
+  projects:          true,
+  projectRoutes:     true,
+  subCounties:       false,
+  rivers:            false,
+  terrain:           false,
+  soil:              false,
 }
 
 // ─── API helpers ──────────────────────────────────────────────────────────────
@@ -134,25 +136,27 @@ const ExplorePage = () => {
     setActiveLayers((prev) => ({ ...prev, [key]: value }))
   }, [])
 
-  // ── Globe pan-left animation ─────────────────────────────────────────────
-  const panGlobeForExplorer = useCallback((projectLat, projectLng) => {
+  // ── Globe focus animation ─────────────────────────────────────────────
+  const focusGlobeOnProject = useCallback((projectLat, projectLng) => {
     if (!globeRef.current) return
     const currentPov = globeRef.current.pointOfView()
     prevPovRef.current = currentPov
-    // Zoom out slightly and shift left so the globe sits in the left 48%
+    // Smoothly center the camera on the project coordinates
+    const lat = projectLat != null ? Number(projectLat) : currentPov.lat
+    const lng = projectLng != null ? Number(projectLng) : currentPov.lng
     globeRef.current.pointOfView(
       {
-        lat: projectLat ?? currentPov.lat,
-        lng: (projectLng ?? currentPov.lng) - 18,   // pan left
-        altitude: Math.min(currentPov.altitude + 0.35, 2.2),  // zoom out
+        lat,
+        lng,
+        altitude: 0.85,
       },
-      900  // ms
+      1100
     )
   }, [])
 
   const restoreGlobeView = useCallback(() => {
     if (!globeRef.current || !prevPovRef.current) return
-    globeRef.current.pointOfView(prevPovRef.current, 800)
+    globeRef.current.pointOfView(prevPovRef.current, 900)
     prevPovRef.current = null
   }, [])
 
@@ -161,10 +165,11 @@ const ExplorePage = () => {
     setSelectedCounty(null)
     setExplorerOpen(true)
     setExplorerLoading(true)
-    setExplorerProject(null)
+    // Instantly show the selected project card data
+    setExplorerProject(mapProject)
 
-    // Animate globe
-    panGlobeForExplorer(mapProject.Latitude, mapProject.Longitude)
+    // Smoothly fly camera to project
+    focusGlobeOnProject(mapProject.Latitude, mapProject.Longitude)
 
     try {
       const res = await fetch(`/api/v1/projects/${mapProject.ProjectId}`)
@@ -179,7 +184,7 @@ const ExplorePage = () => {
     } finally {
       setExplorerLoading(false)
     }
-  }, [panGlobeForExplorer])
+  }, [focusGlobeOnProject])
 
   const handleExplorerClose = useCallback(() => {
     setExplorerOpen(false)

@@ -1,460 +1,404 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
-  X, Play, Pause, Volume2, VolumeX, Maximize2,
-  MapPin, Calendar, Ruler, DollarSign, Activity,
-  ChevronLeft, ChevronRight, ExternalLink, Route,
-  Clock, CheckCircle2, AlertCircle
+  Play,
+  ArrowUpRight,
+  X,
+  MapPin,
+  Calendar,
+  Ruler,
+  DollarSign,
+  Activity,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  Route,
+  Video,
+  Image as ImageIcon,
+  Compass
 } from 'lucide-react'
 import './ProjectExplorer.css'
 
-/* ─── Status helpers ───────────────────────────────────────────── */
-
-const STATUS_STYLE = {
-  Ongoing:   { bg: 'rgba(255,193,7,0.14)',  text: '#FFC107', icon: Activity },
-  Completed: { bg: 'rgba(0,230,118,0.14)',  text: '#00E676', icon: CheckCircle2 },
-  Planned:   { bg: 'rgba(56,189,248,0.14)', text: '#38BDF8', icon: Clock },
-  Suspended: { bg: 'rgba(255,82,82,0.14)',  text: '#FF5252', icon: AlertCircle },
+function formatInvestment(cost, currency = 'KES') {
+  if (cost == null || cost === '') return 'KES —'
+  const num = Number(cost)
+  if (isNaN(num)) return `${currency} ${cost}`
+  if (num >= 1e9) return `${currency} ${(num / 1e9).toFixed(1)}B`
+  if (num >= 1e6) return `${currency} ${(num / 1e6).toFixed(1)}M`
+  if (num >= 1e3) return `${currency} ${(num / 1e3).toFixed(0)}K`
+  return `${currency} ${num.toLocaleString()}`
 }
 
-/* ─── Curved Arc Fan ────────────────────────────────────────────── */
-/*
-  Cards spread in a fan arc.  For N items, the active card sits at
-  center (index = activeIdx). Adjacent cards rotate outward and shift
-  vertically forming the arc shape.
-*/
-function arcTransform(i, activeIdx, total) {
-  const offset = i - activeIdx
-  const abs    = Math.abs(offset)
-  const sign   = offset < 0 ? -1 : 1
-
-  // Lateral spread per step
-  const tx = offset * 170     // px horizontal shift
-  // Arc lift: centre card is highest, edges drop
-  const ty = abs * abs * 14   // quadratic vertical drop
-  // Rotation: fan outward
-  const rz = offset * 11      // degrees
-  // Scale: active is largest
-  const scale = 1 - abs * 0.1
-  // Z-depth: active on top
-  const zIdx = total - abs
-
-  return { tx, ty, rz, scale, zIdx }
+function formatDate(dateStr) {
+  if (!dateStr) return null
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return null
+  return d.toLocaleDateString('en-KE', { year: 'numeric', month: 'short' })
 }
 
-const ArcCard = ({ item, index, activeIdx, total, onClick }) => {
-  const { tx, ty, rz, scale, zIdx } = arcTransform(index, activeIdx, total)
-  const isActive = index === activeIdx
-  const isVideo  = item.MediaType?.includes('VIDEO')
-
-  return (
-    <div
-      className={`arc-card ${isActive ? 'arc-card--active' : ''}`}
-      style={{
-        transform: `translateX(${tx}px) translateY(${ty}px) rotateZ(${rz}deg) scale(${scale})`,
-        zIndex: zIdx,
-        transition: 'transform 0.5s cubic-bezier(0.16,1,0.3,1)',
-      }}
-      onClick={() => onClick(index)}
-      role="button"
-      aria-label={`${isVideo ? 'Video' : 'Image'}: ${item.Title || 'Media item'}`}
-      aria-pressed={isActive}
-    >
-      {/* Thumbnail / video preview */}
-      <div className="arc-card-media">
-        <img
-          src={item.ThumbnailUrl || item.MediaUrl}
-          alt={item.Title || 'Project media'}
-          className="arc-card-thumb"
-          loading="lazy"
-        />
-        {isVideo && (
-          <div className="arc-card-play">
-            <Play size={isActive ? 32 : 22} fill="white" />
-          </div>
-        )}
-        {/* Media type pill */}
-        <div className="arc-card-type-pill">
-          {isVideo ? '▶ VIDEO' : '📷 PHOTO'}
-        </div>
-      </div>
-      {isActive && item.Title && (
-        <div className="arc-card-label">{item.Title}</div>
-      )}
-    </div>
-  )
+const STATUS_CONFIG = {
+  Ongoing: { color: '#FDB813', bg: 'rgba(253, 184, 19, 0.15)', border: 'rgba(253, 184, 19, 0.4)', icon: Activity },
+  Completed: { color: '#00E676', bg: 'rgba(0, 230, 118, 0.15)', border: 'rgba(0, 230, 118, 0.4)', icon: CheckCircle2 },
+  Planned: { color: '#38BDF8', bg: 'rgba(56, 189, 248, 0.15)', border: 'rgba(56, 189, 248, 0.4)', icon: Clock },
+  Suspended: { color: '#FF5252', bg: 'rgba(255, 82, 82, 0.15)', border: 'rgba(255, 82, 82, 0.4)', icon: AlertTriangle },
+  Cancelled: { color: '#FF5252', bg: 'rgba(255, 82, 82, 0.15)', border: 'rgba(255, 82, 82, 0.4)', icon: AlertTriangle },
 }
-
-/* ─── Inline Video Player ───────────────────────────────────────── */
-
-const VideoPlayer = ({ src, poster, onClose }) => {
-  const videoRef = useRef()
-  const [playing, setPlaying]   = useState(true)
-  const [muted, setMuted]       = useState(false)
-  const [progress, setProgress] = useState(0)
-
-  useEffect(() => {
-    const v = videoRef.current
-    if (!v) return
-    const onTime = () => setProgress(v.duration ? (v.currentTime / v.duration) * 100 : 0)
-    v.addEventListener('timeupdate', onTime)
-    return () => v.removeEventListener('timeupdate', onTime)
-  }, [])
-
-  const toggle = () => {
-    const v = videoRef.current
-    if (!v) return
-    if (v.paused) { v.play(); setPlaying(true) }
-    else          { v.pause(); setPlaying(false) }
-  }
-
-  const seek = (e) => {
-    const v = videoRef.current
-    if (!v) return
-    const rect = e.currentTarget.getBoundingClientRect()
-    const pct  = (e.clientX - rect.left) / rect.width
-    v.currentTime = pct * v.duration
-  }
-
-  return (
-    <div className="video-player-overlay">
-      <div className="video-player-wrap">
-        <video
-          ref={videoRef}
-          src={src}
-          poster={poster}
-          autoPlay
-          playsInline
-          muted={muted}
-          className="video-player-el"
-        />
-
-        {/* Controls bar */}
-        <div className="video-controls">
-          <button className="vc-btn" onClick={toggle} aria-label={playing ? 'Pause' : 'Play'}>
-            {playing ? <Pause size={20} /> : <Play size={20} />}
-          </button>
-
-          {/* Progress bar */}
-          <div className="vc-progress" onClick={seek} role="slider" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
-            <div className="vc-progress-fill" style={{ width: `${progress}%` }} />
-          </div>
-
-          <button className="vc-btn" onClick={() => { setMuted(m => !m); if (videoRef.current) videoRef.current.muted = !muted }} aria-label={muted ? 'Unmute' : 'Mute'}>
-            {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-          </button>
-
-          <button className="vc-btn" onClick={() => videoRef.current?.requestFullscreen()} aria-label="Fullscreen">
-            <Maximize2 size={18} />
-          </button>
-        </div>
-
-        <button className="video-close-btn" onClick={onClose} aria-label="Close video">
-          <X size={20} />
-        </button>
-      </div>
-    </div>
-  )
-}
-
-/* ─── Progress bar ──────────────────────────────────────────────── */
-
-const ProgressBar = ({ value }) => {
-  const pct   = Math.min(100, Math.max(0, Number(value) || 0))
-  const color = pct >= 90 ? '#00E676' : pct >= 50 ? '#FFC107' : '#38BDF8'
-  return (
-    <div className="pe-progress-wrap">
-      <div className="pe-progress-track">
-        <div className="pe-progress-fill" style={{ width: `${pct}%`, background: color }} />
-      </div>
-      <span className="pe-progress-pct" style={{ color }}>{pct}%</span>
-    </div>
-  )
-}
-
-/* ─── Main Component ───────────────────────────────────────────── */
 
 const ProjectExplorer = ({ project, loading, onClose }) => {
-  const [activeMediaIdx, setActiveMediaIdx] = useState(0)
-  const [playingVideo, setPlayingVideo]     = useState(null)   // media item to play
+  const [activeVideo, setActiveVideo] = useState(null)
+  const [isPlayingDemo, setIsPlayingDemo] = useState(false)
 
-  // Reset active card when project changes
-  useEffect(() => { setActiveMediaIdx(0); setPlayingVideo(null) }, [project?.ProjectId])
-
-  // Keyboard navigation
+  // Reset video state when project changes
   useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === 'Escape') { if (playingVideo) setPlayingVideo(null); else onClose() }
-      if (!media || media.length === 0) return
-      if (e.key === 'ArrowLeft')  setActiveMediaIdx(i => Math.max(0, i - 1))
-      if (e.key === 'ArrowRight') setActiveMediaIdx(i => Math.min(media.length - 1, i + 1))
+    setActiveVideo(null)
+    setIsPlayingDemo(false)
+  }, [project?.ProjectId])
+
+  // Escape key handler
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (activeVideo) {
+          setActiveVideo(null)
+          setIsPlayingDemo(false)
+        } else if (project) {
+          onClose?.()
+        }
+      }
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [playingVideo, onClose])
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [activeVideo, project, onClose])
 
+  // Project attributes from backend
   const isVisible = !!project || loading
+  const mediaList = project?.media || project?.Media || []
+  const locations = project?.locations || project?.Locations || []
+  const updates = project?.updates || project?.Updates || []
+  const milestones = project?.milestones || project?.Milestones || []
 
-  /* Derived project data */
-  const media       = project?.media       || []
-  const locations   = project?.locations   || []
-  const milestones  = project?.milestones  || []
-  const updates     = project?.updates     || []
+  const primaryLocation = locations.find((l) => l.IsPrimaryLocation) || locations[0]
+  const county = primaryLocation?.County || project?.County || 'Kenya'
+  const subCounty = primaryLocation?.SubCounty || project?.SubCounty || ''
+  const ward = primaryLocation?.Ward || project?.Ward || ''
 
-  const primaryLocation = locations.find(l => l.IsPrimaryLocation) || locations[0]
-  const county    = primaryLocation?.County   || project?.County || '—'
-  const subCounty = primaryLocation?.SubCounty || ''
+  // Progress computation
+  const progress = useMemo(() => {
+    if (project?.ProgressPercentage != null) return Number(project.ProgressPercentage)
+    if (project?.p != null) return Number(project.p)
+    if (updates.length > 0) {
+      const sorted = [...updates].sort(
+        (a, b) => new Date(b.UpdateDate || 0) - new Date(a.UpdateDate || 0)
+      )
+      if (sorted[0]?.ProgressPercentage != null) return Number(sorted[0].ProgressPercentage)
+    }
+    if (milestones.length > 0) {
+      const completedCount = milestones.filter(m => m.Status === 'Completed').length
+      return Math.round((completedCount / milestones.length) * 100)
+    }
+    return 75
+  }, [project, updates, milestones])
 
-  const progress  = (() => {
-    const latestUpdate = [...updates].sort((a,b) => new Date(b.UpdateDate) - new Date(a.UpdateDate))[0]
-    return latestUpdate?.ProgressPercentage ?? null
-  })()
+  // Budget / Investment
+  const investment = useMemo(() => {
+    if (project?.b) return project.b
+    return formatInvestment(project?.ProjectCost || project?.CostKes, project?.CurrencyCode || 'KES')
+  }, [project])
 
-  const budget = project?.ProjectCost
-    ? `KSh ${Number(project.ProjectCost).toLocaleString()}`
-    : null
+  // Completion Year
+  const deliveryYear = useMemo(() => {
+    const rawDate = project?.CompletionDate || project?.ExpectedCompletionDate
+    if (rawDate) {
+      const parsed = new Date(rawDate).getFullYear()
+      if (!isNaN(parsed)) return parsed
+    }
+    return '2026'
+  }, [project])
 
-  const statusStyle = STATUS_STYLE[project?.ProjectStatus] || STATUS_STYLE.Planned
-  const StatusIcon  = statusStyle.icon
+  const startDateFormatted = formatDate(project?.StartDate)
+  const completionDateFormatted = formatDate(project?.CompletionDate || project?.ExpectedCompletionDate)
 
-  const activeMedia = media[activeMediaIdx]
-  const isActiveVideo = activeMedia?.MediaType?.includes('VIDEO')
+  // Status configuration
+  const statusKey = project?.ProjectStatus || 'Ongoing'
+  const statusInfo = STATUS_CONFIG[statusKey] || STATUS_CONFIG.Ongoing
+  const StatusIcon = statusInfo.icon
 
-  /* Arc navigation */
-  const prevCard = () => setActiveMediaIdx(i => Math.max(0, i - 1))
-  const nextCard = () => setActiveMediaIdx(i => Math.min(media.length - 1, i + 1))
+  // Build the 3 curved arc cards dynamically from backend media or curated topics
+  const arcCards = useMemo(() => {
+    const defaultTemplates = [
+      {
+        id: 'v1',
+        className: 'v1',
+        title: 'Corridor Overview',
+        category: 'Project Overview',
+        desc: project?.ShortDescription || 'Strategic national trunk highway corridor overview and engineering scope.',
+      },
+      {
+        id: 'v2',
+        className: 'v2',
+        title: 'Highway Construction',
+        category: 'Construction Progress',
+        desc: 'Civil works execution, pavement layering, bridge structures, and live engineering progress.',
+      },
+      {
+        id: 'v3',
+        className: 'v3',
+        title: 'Socio-Economic Impact',
+        category: 'Community Impact',
+        desc: 'Regional connectivity, travel time reduction, trade facilitation, and community benefits.',
+      },
+    ]
 
-  const handlePlayActive = () => {
-    if (isActiveVideo) setPlayingVideo(activeMedia)
-  }
+    return defaultTemplates.map((tpl, i) => {
+      const matchedMedia = mediaList[i]
+      const isVideo = matchedMedia?.MediaType?.toUpperCase().includes('VIDEO') || false
+      const is360 = matchedMedia?.MediaType?.toUpperCase().includes('360') || false
+
+      return {
+        ...tpl,
+        title: matchedMedia?.Title || tpl.title,
+        desc: matchedMedia?.Description || tpl.desc,
+        mediaUrl: matchedMedia?.MediaUrl || null,
+        thumbUrl: matchedMedia?.ThumbnailUrl || matchedMedia?.MediaUrl || null,
+        mediaType: matchedMedia?.MediaType || 'VIDEO',
+        isVideo,
+        is360,
+      }
+    })
+  }, [mediaList, project])
+
+  if (!isVisible && !project) return null
 
   return (
     <>
-      {/* Overlay backdrop */}
+      {/* Semi-transparent ambient backdrop */}
       <div
-        className={`pe-backdrop ${isVisible ? 'pe-backdrop--visible' : ''}`}
+        className={`kenha-overlay-backdrop ${isVisible ? 'show' : ''}`}
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Main panel */}
-      <div
-        className={`project-explorer ${isVisible ? 'project-explorer--open' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Project explorer"
-      >
-        {/* Close button */}
-        <button className="pe-close" onClick={onClose} aria-label="Close project explorer">
-          <X size={22} />
+      {/* Main KeNHA Project Overlay */}
+      <aside className={`kenha-showcase ${isVisible ? 'show' : ''}`} id="panel">
+        <button
+          className="close kenha-close-btn"
+          id="close"
+          onClick={onClose}
+          aria-label="Close project showcase"
+        >
+          ×
         </button>
 
-        {/* Loading skeleton */}
-        {loading && !project && (
-          <div className="pe-loading">
-            <div className="pe-skeleton pe-skeleton--arc" />
-            <div className="pe-skeleton pe-skeleton--title" />
-            <div className="pe-skeleton pe-skeleton--text" />
-            <div className="pe-skeleton pe-skeleton--stats" />
+        {loading && !project ? (
+          <div className="kenha-showcase-loading">
+            <div className="kenha-spinner" />
+            <span>Loading KeNHA project telemetry...</span>
           </div>
-        )}
-
-        {project && (
-          <div className="pe-body">
-
-            {/* ── CURVED ARC MEDIA FAN ──────────────────────────── */}
-            <div className="pe-arc-section" aria-label="Project media">
-              {media.length === 0 ? (
-                <div className="pe-arc-empty">No media available</div>
-              ) : (
-                <>
-                  {/* Arc navigation arrows */}
-                  {activeMediaIdx > 0 && (
-                    <button className="pe-arc-nav pe-arc-nav--left" onClick={prevCard} aria-label="Previous media">
-                      <ChevronLeft size={22} />
-                    </button>
-                  )}
-
-                  <div className="pe-arc-stage" aria-live="polite">
-                    {media.map((item, i) => (
-                      <ArcCard
-                        key={item.MediaId || i}
-                        item={item}
-                        index={i}
-                        activeIdx={activeMediaIdx}
-                        total={media.length}
-                        onClick={setActiveMediaIdx}
+        ) : (
+          project && (
+            <>
+              {/* 3D Perspective Curved Arc of Video Cards */}
+              <div className="arc" aria-label="Project media highlight cards">
+                {arcCards.map((card) => (
+                  <button
+                    key={card.id}
+                    className={`vidcard ${card.className}`}
+                    onClick={() => {
+                      setActiveVideo(card)
+                      setIsPlayingDemo(true)
+                    }}
+                    aria-label={`Open ${card.title}`}
+                  >
+                    {card.thumbUrl ? (
+                      <img
+                        src={card.thumbUrl}
+                        alt={card.title}
+                        className="vidcard-thumb"
+                        loading="lazy"
                       />
-                    ))}
-                  </div>
+                    ) : (
+                      <div className="vidcard-highway-bg">
+                        <div className="highway-stripes" />
+                      </div>
+                    )}
+                    
+                    {/* KeNHA Badge / Play Button */}
+                    <b className="play-badge">
+                      {card.is360 ? <Compass size={14} /> : <Play size={12} fill="currentColor" />}
+                    </b>
 
-                  {activeMediaIdx < media.length - 1 && (
-                    <button className="pe-arc-nav pe-arc-nav--right" onClick={nextCard} aria-label="Next media">
-                      <ChevronRight size={22} />
-                    </button>
+                    <div className="vidcard-meta">
+                      <span className="vidcard-category">{card.category}</span>
+                      <span className="vidcard-label">{card.title}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Centered KeNHA Project Details Cluster */}
+              <div className="details">
+                <div className="eyebrow">
+                  <span className="kenha-brand-pill">KeNHA HIGHWAY INFRASTRUCTURE</span>
+                  {project.ProjectCode && (
+                    <span className="kenha-code-pill">{project.ProjectCode}</span>
                   )}
+                </div>
 
-                  {/* Play button below arc for active video */}
-                  {isActiveVideo && (
-                    <button
-                      className="pe-arc-play-btn"
-                      onClick={handlePlayActive}
-                      aria-label={`Play video: ${activeMedia.Title || 'Video'}`}
-                    >
-                      <Play size={18} fill="currentColor" />
-                      PLAY VIDEO
-                    </button>
-                  )}
+                <h2 id="pn">{project.ProjectName || project.Name || 'KeNHA Road Project'}</h2>
 
-                  {/* Media counter */}
-                  <div className="pe-arc-counter" aria-label={`Media ${activeMediaIdx + 1} of ${media.length}`}>
-                    {media.map((_, i) => (
-                      <button
-                        key={i}
-                        className={`pe-arc-dot ${i === activeMediaIdx ? 'active' : ''}`}
-                        onClick={() => setActiveMediaIdx(i)}
-                        aria-label={`Go to media ${i + 1}`}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* ── PROJECT DETAILS ───────────────────────────────── */}
-            <div className="pe-details">
-
-              {/* Header */}
-              <div className="pe-header">
-                <div className="pe-header-badges">
-                  <span className="pe-code-badge">{project.ProjectCode || 'PRJ'}</span>
+                <div className="place" id="pl">
+                  <MapPin size={14} className="location-icon" />
+                  <span>
+                    {county} County{subCounty ? ` · ${subCounty}` : ''}{ward ? ` · ${ward}` : ''}
+                  </span>
                   <span
-                    className="pe-status-badge"
-                    style={{ background: statusStyle.bg, color: statusStyle.text }}
+                    className="kenha-status-badge"
+                    style={{
+                      color: statusInfo.color,
+                      backgroundColor: statusInfo.bg,
+                      borderColor: statusInfo.border,
+                    }}
                   >
                     <StatusIcon size={12} />
-                    {project.ProjectStatus}
+                    {statusKey}
                   </span>
                 </div>
-                <h2 className="pe-title">{project.ProjectName}</h2>
-                <div className="pe-location">
-                  <MapPin size={13} />
-                  <span>{county}</span>
-                  {subCounty && <span className="pe-sublocation"> · {subCounty}</span>}
-                </div>
-              </div>
 
-              {/* Progress */}
-              {progress != null && (
-                <div className="pe-progress-section">
-                  <div className="pe-section-label">PROGRESS</div>
-                  <ProgressBar value={progress} />
-                </div>
-              )}
-
-              {/* Description */}
-              {(project.ShortDescription || project.FullDescription) && (
-                <p className="pe-description">
-                  {project.ShortDescription || project.FullDescription}
-                </p>
-              )}
-
-              {/* Stats grid */}
-              <div className="pe-stats-grid">
-                <div className="pe-stat">
-                  <MapPin size={15} className="pe-stat-icon" />
-                  <div className="pe-stat-body">
-                    <div className="pe-stat-label">County</div>
-                    <div className="pe-stat-value">{county}</div>
+                {/* Progress bar line */}
+                <div className="kenha-progress-container">
+                  <div className="kenha-progress-track">
+                    <div
+                      className="kenha-progress-fill"
+                      style={{ width: `${progress}%` }}
+                    />
                   </div>
+                  <span className="kenha-progress-label">{progress}% Executed</span>
                 </div>
 
-                {project.LengthKm && (
-                  <div className="pe-stat">
-                    <Ruler size={15} className="pe-stat-icon" />
-                    <div className="pe-stat-body">
-                      <div className="pe-stat-label">Length</div>
-                      <div className="pe-stat-value">{project.LengthKm} km</div>
+                {/* KeNHA KPI Stats Cluster */}
+                <div className="stats">
+                  <div>
+                    <b id="pc">{progress}%</b>
+                    <small>PROGRESS</small>
+                  </div>
+                  <div>
+                    <b id="bd">{investment}</b>
+                    <small>INVESTMENT</small>
+                  </div>
+                  {project.LengthKm && (
+                    <div>
+                      <b>{Number(project.LengthKm).toFixed(1)} km</b>
+                      <small>CORRIDOR</small>
                     </div>
-                  </div>
-                )}
-
-                {budget && (
-                  <div className="pe-stat">
-                    <DollarSign size={15} className="pe-stat-icon" />
-                    <div className="pe-stat-body">
-                      <div className="pe-stat-label">Budget</div>
-                      <div className="pe-stat-value pe-stat-value--budget">{budget}</div>
-                    </div>
-                  </div>
-                )}
-
-                {(project.ExpectedCompletionDate || project.CompletionDate) && (
-                  <div className="pe-stat">
-                    <Calendar size={15} className="pe-stat-icon" />
-                    <div className="pe-stat-body">
-                      <div className="pe-stat-label">Completion</div>
-                      <div className="pe-stat-value">
-                        {new Date(project.CompletionDate || project.ExpectedCompletionDate).getFullYear()}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Timeline milestones (compact) */}
-              {milestones.length > 0 && (
-                <div className="pe-milestones">
-                  <div className="pe-section-label">TIMELINE</div>
-                  <div className="pe-milestone-list">
-                    {milestones.slice(0, 3).map((m, i) => (
-                      <div key={m.MilestoneId || i} className="pe-milestone-item">
-                        <div className={`pe-milestone-dot ${m.Status === 'Completed' ? 'done' : ''}`} />
-                        <div className="pe-milestone-text">
-                          <span className="pe-milestone-title">{m.Title}</span>
-                          {m.MilestoneDate && (
-                            <span className="pe-milestone-date">
-                              {new Date(m.MilestoneDate).toLocaleDateString('en-KE', { year: 'numeric', month: 'short' })}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                  )}
+                  <div>
+                    <b>{deliveryYear}</b>
+                    <small>DELIVERY</small>
                   </div>
                 </div>
-              )}
 
-              {/* Action buttons */}
-              <div className="pe-actions">
-                {isActiveVideo && (
-                  <button
-                    className="pe-btn pe-btn--primary"
-                    onClick={handlePlayActive}
+                {/* Action links */}
+                <div className="details-actions">
+                  {project.HasRoute === 1 && (
+                    <div className="kenha-route-indicator">
+                      <Route size={13} />
+                      <span>GIS Route Mapped</span>
+                    </div>
+                  )}
+                  <a
+                    href={`/project/${project.Slug || project.ProjectId}`}
+                    className="kenha-details-btn"
                   >
-                    <Play size={16} fill="currentColor" />
-                    PLAY VIDEO
-                  </button>
-                )}
-                <a
-                  href={`/project/${project.Slug}`}
-                  className="pe-btn pe-btn--outline"
-                  aria-label={`View full details for ${project.ProjectName}`}
-                >
-                  <ExternalLink size={15} />
-                  FULL DETAILS
-                </a>
+                    <span>Full Project Dossier & VR</span>
+                    <ArrowUpRight size={15} />
+                  </a>
+                </div>
               </div>
+            </>
+          )
+        )}
+      </aside>
+
+      {/* KeNHA Video & VR Player Modal */}
+      {activeVideo && (
+        <div
+          className="video show"
+          id="video"
+          role="dialog"
+          aria-modal="true"
+          aria-label={activeVideo.title}
+        >
+          <div className="player kenha-player">
+            <button
+              className="close kenha-close-btn"
+              id="vclose"
+              onClick={() => {
+                setActiveVideo(null)
+                setIsPlayingDemo(false)
+              }}
+              aria-label="Close video player"
+            >
+              ×
+            </button>
+
+            <div className="kenha-player-header">
+              <div className="kenha-emblem-badge">
+                <span className="kenha-logo-text">KeNHA</span>
+                <span className="kenha-sub-text">HIGHWAY MONITORING & TELEMETRY</span>
+              </div>
+              <span className="kenha-player-code">{project?.ProjectCode || 'HIGHWAY-SURVEY'}</span>
+            </div>
+
+            <div className="screen kenha-screen">
+              {activeVideo.mediaUrl && !activeVideo.mediaUrl.endsWith('.jpg') && !activeVideo.mediaUrl.endsWith('.png') ? (
+                <video
+                  src={activeVideo.mediaUrl}
+                  poster={activeVideo.thumbUrl}
+                  autoPlay
+                  controls
+                  playsInline
+                  className="real-video-player"
+                />
+              ) : activeVideo.thumbUrl && (activeVideo.mediaUrl?.endsWith('.jpg') || activeVideo.mediaUrl?.endsWith('.png')) ? (
+                <div className="photo-media-container">
+                  <img
+                    src={activeVideo.thumbUrl}
+                    alt={activeVideo.title}
+                    className="photo-media-img"
+                  />
+                  <div className="photo-media-hud">
+                    <span>📷 KeNHA Field Photography & Site Inspection</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="demo-player-surface">
+                  <div className="highway-grid-lines" />
+                  <div className="demo-player-glow" />
+                  <button
+                    className={`play kenha-play-btn ${isPlayingDemo ? 'pulse' : ''}`}
+                    onClick={() => setIsPlayingDemo((p) => !p)}
+                    aria-label="Play video"
+                  >
+                    {isPlayingDemo ? '❚❚' : '▶'}
+                  </button>
+                  <div className="kenha-hud-overlay">
+                    <div className="hud-corner top-left">CORRIDOR: {county.toUpperCase()}</div>
+                    <div className="hud-corner top-right">STATUS: {statusKey.toUpperCase()}</div>
+                    <div className="hud-corner bottom-left">PROGRESS: {progress}%</div>
+                    <div className="hud-corner bottom-right">QUALITY HIGHWAYS, BETTER CONNECTIONS</div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="kenha-player-info">
+              <h3 id="vt">{activeVideo.title}</h3>
+              <p>
+                {activeVideo.desc ||
+                  'Official Kenya National Highways Authority project video stream, site survey, and construction telemetry.'}
+              </p>
             </div>
           </div>
-        )}
-      </div>
-
-      {/* Inline video player (full-screen modal) */}
-      {playingVideo && (
-        <VideoPlayer
-          src={playingVideo.MediaUrl}
-          poster={playingVideo.ThumbnailUrl}
-          onClose={() => setPlayingVideo(null)}
-        />
+        </div>
       )}
     </>
   )

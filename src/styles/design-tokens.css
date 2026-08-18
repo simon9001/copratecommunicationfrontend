@@ -1,52 +1,57 @@
 /* =============================================
    KeNHA VR Projects — Design Tokens
-   Official KeNHA Brand Aesthetics & Space Dark Theme
+   Official KeNHA Brand Aesthetics (Highway Yellow, Platinum Silver, Obsidian Asphalt)
+   "Quality Highways, Better Connections"
    ============================================= */
 
 :root {
-  /* ---- KeNHA Official Brand Colors ---- */
-  --color-kenha-yellow: #FFC107;
-  --color-kenha-yellow-glow: rgba(255, 193, 7, 0.25);
-  --color-kenha-silver: #CBD5E1;
-  --color-kenha-dark: #070A0F;
+  /* ---- KeNHA Official Brand Colors (from Logo) ---- */
+  --color-kenha-yellow: #FFC709;
+  --color-kenha-gold: #FDB813;
+  --color-kenha-yellow-glow: rgba(253, 184, 19, 0.35);
+  --color-kenha-silver: #E2E8F0;
+  --color-kenha-silver-dim: #94A3B8;
+  --color-kenha-dark: #06090F;
+  --color-kenha-asphalt: #141D2B;
 
   /* ---- Dark Theme Palette ---- */
-  --color-bg: #06090E;
-  --color-bg-deep: #030508;
-  --color-surface: rgba(10, 16, 26, 0.85);
-  --color-surface-solid: #0B121E;
-  --color-surface-hover: rgba(16, 26, 42, 0.9);
-  --color-surface-active: rgba(22, 36, 58, 0.95);
+  --color-bg: #06090F;
+  --color-bg-deep: #030509;
+  --color-surface: rgba(13, 20, 32, 0.88);
+  --color-surface-solid: #0E1624;
+  --color-surface-hover: rgba(20, 31, 48, 0.95);
+  --color-surface-active: rgba(28, 44, 68, 0.98);
 
-  /* Accents */
-  --color-accent: #00E676;
-  --color-accent-hover: #00C853;
-  --color-accent-dim: rgba(0, 230, 118, 0.3);
-  --color-accent-glow: rgba(0, 230, 118, 0.18);
-  --color-accent-subtle: rgba(0, 230, 118, 0.08);
+  /* Primary Brand Accent: KeNHA Highway Yellow / Gold */
+  --color-accent: #FDB813;
+  --color-accent-hover: #FFC709;
+  --color-accent-dim: rgba(253, 184, 19, 0.3);
+  --color-accent-glow: rgba(253, 184, 19, 0.22);
+  --color-accent-subtle: rgba(253, 184, 19, 0.08);
 
-  --color-highlight: #FFC107;
-  --color-highlight-dim: rgba(255, 193, 7, 0.25);
+  --color-highlight: #FFC709;
+  --color-highlight-dim: rgba(255, 199, 9, 0.25);
 
   /* Text */
-  --color-text: #F1F5F9;
-  --color-text-secondary: #CBD5E1;
+  --color-text: #FFFFFF;
+  --color-text-secondary: #E2E8F0;
   --color-text-muted: #94A3B8;
   --color-text-dim: #64748B;
 
   /* Borders */
-  --color-border: rgba(255, 255, 255, 0.09);
-  --color-border-hover: rgba(255, 255, 255, 0.18);
-  --color-border-accent: rgba(0, 230, 118, 0.3);
-  --color-border-yellow: rgba(255, 193, 7, 0.35);
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-border-hover: rgba(253, 184, 19, 0.4);
+  --color-border-accent: rgba(253, 184, 19, 0.5);
+  --color-border-yellow: rgba(253, 184, 19, 0.6);
+  --color-border-silver: rgba(226, 232, 240, 0.25);
 
   /* Status Colors */
   --color-success: #00E676;
-  --color-warning: #FFC107;
+  --color-warning: #FDB813;
   --color-error: #FF5252;
   --color-info: #38BDF8;
   --color-planned: #38BDF8;
-  --color-ongoing: #FFC107;
+  --color-ongoing: #FDB813;
   --color-completed: #00E676;
   --color-suspended: #FF5252;
 
@@ -86,17 +91,17 @@
   --radius-full: 9999px;
 
   /* ---- Glassmorphism ---- */
-  --glass-bg: rgba(10, 16, 26, 0.85);
-  --glass-bg-light: rgba(16, 26, 42, 0.75);
+  --glass-bg: rgba(13, 20, 32, 0.88);
+  --glass-bg-light: rgba(20, 31, 48, 0.78);
   --glass-blur: blur(20px);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.09);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.1);
 
   /* ---- Shadows ---- */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 30px rgba(0, 230, 118, 0.15);
-  --shadow-glow-yellow: 0 0 30px rgba(255, 193, 7, 0.2);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 30px rgba(253, 184, 19, 0.25);
+  --shadow-glow-yellow: 0 0 30px rgba(253, 184, 19, 0.35);
 
   /* ---- Transitions ---- */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -111,4 +116,43 @@
   --z-panel: 100;
   --z-header: 200;
   --z-modal: 1000;
+}
+
+/* =============================================
+   Light Theme Overrides
+   Applied when <html data-theme="light">
+   ============================================= */
+
+[data-theme="light"] {
+  /* Backgrounds */
+  --color-bg:              #F0F2F5;
+  --color-bg-deep:         #E4E8EE;
+  --color-surface:         rgba(255, 255, 255, 0.92);
+  --color-surface-solid:   #FFFFFF;
+  --color-surface-hover:   rgba(240, 244, 250, 0.98);
+  --color-surface-active:  rgba(228, 237, 248, 0.98);
+
+  /* Text */
+  --color-text:            #0D1926;
+  --color-text-secondary:  #1E3148;
+  --color-text-muted:      #4B6077;
+  --color-text-dim:        #7A96AE;
+
+  /* Borders */
+  --color-border:          rgba(0, 0, 0, 0.1);
+  --color-border-hover:    rgba(253, 184, 19, 0.5);
+  --color-border-silver:   rgba(100, 130, 160, 0.2);
+
+  /* Glass */
+  --glass-bg:              rgba(255, 255, 255, 0.85);
+  --glass-bg-light:        rgba(240, 244, 250, 0.9);
+  --glass-border:          1px solid rgba(0, 0, 0, 0.08);
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px  rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.14);
+
+  /* Scrollbar */
+  color-scheme: light;
 }

@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
+import { ThemeProvider } from './context/ThemeContext'
 import Header from './components/Header/Header'
 import Footer from './components/Footer/Footer'
 import ExplorePage from './pages/ExplorePage/ExplorePage'
@@ -10,7 +11,7 @@ import './App.css'
 
 function App() {
   return (
-    <>
+    <ThemeProvider>
       <Header />
       <main className="app-main">
         <Routes>
@@ -28,7 +29,7 @@ function App() {
         </Routes>
       </main>
       <Footer />
-    </>
+    </ThemeProvider>
   )
 }
 

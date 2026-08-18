@@ -7,8 +7,9 @@ const LAYER_GROUPS = [
     label: 'BASE LAYERS',
     layers: [
       { key: 'satellite', label: 'Satellite Imagery', defaultOn: true },
-      { key: 'kenyaBoundary', label: 'Kenya Boundary', defaultOn: true },
-      { key: 'counties', label: 'Counties', defaultOn: true },
+      { key: 'countryBoundaries', label: 'Country Boundaries', defaultOn: true },
+      { key: 'countryLabels', label: 'Country Names', defaultOn: true },
+      { key: 'counties', label: 'Kenya Counties', defaultOn: true },
     ],
   },
   {

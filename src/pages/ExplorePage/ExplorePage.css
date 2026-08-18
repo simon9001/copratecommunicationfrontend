@@ -20,9 +20,8 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--color-accent, #00E676);
+  background: var(--color-accent, #FDB813);
   animation: loading-pulse 1.2s ease-in-out infinite;
-  box-shadow: 0 0 20px rgba(0, 230, 118, 0.5);
 }
 
 @keyframes loading-pulse {
