@@ -10,6 +10,7 @@ import * as Cesium from 'cesium'
 import 'cesium/Build/Cesium/Widgets/widgets.css'
 import { kenyaCities } from '../../data/kenyaCities.js'
 import { WORLD_COUNTRIES_GEOJSON_URL, countryCentroids } from '../../data/worldCountriesData.js'
+import { kenyaCountiesGeoJson } from '../../data/kenyaCountiesGeoJson.js'
 import './KenyaGlobe.css'
 
 // ── Cesium Ion Token ─────────────────────────────────────────────────────────
@@ -23,9 +24,7 @@ const KENYA_CENTER = {
   height: 1750000, // meters above terrain - frames all of Kenya cleanly
 }
 
-// GeoJSON for Kenya's 47 counties
-const KENYA_COUNTIES_GEOJSON_URL =
-  'https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/CGAZ/geoBoundaries-KEN-ADM1_simplified.geojson'
+// GeoJSON for Kenya's 47 counties — loaded from bundled local data (no external dependency)
 
 // Status color constants - KeNHA Brand
 const STATUS_COLORS = {
@@ -286,8 +285,8 @@ const KenyaGlobe = forwardRef(function KenyaGlobe(
       })
     })
 
-    // Load Kenya 47 County Boundaries
-    Cesium.GeoJsonDataSource.load(KENYA_COUNTIES_GEOJSON_URL, {
+    // Load Kenya 47 County Boundaries from bundled local GeoJSON data
+    Cesium.GeoJsonDataSource.load(kenyaCountiesGeoJson, {
       stroke: Cesium.Color.fromCssColorString('rgba(253, 184, 19, 0.45)'),
       fill: Cesium.Color.fromCssColorString('rgba(253, 184, 19, 0.03)'),
       strokeWidth: 1.5,

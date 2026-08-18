@@ -30,7 +30,7 @@
   inset: 0;
   z-index: 110;
   pointer-events: none;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .kenha-showcase.show {
@@ -84,13 +84,19 @@
   position: absolute;
   left: 50%;
   top: 41%;
-  width: min(860px, 88vw);
-  height: 220px;
+  width: min(960px, 92vw);
+  height: 260px;
   transform: translate(-50%, -50%);
   pointer-events: none;
   perspective: 950px;
   user-select: none;
   animation: arcFanPop 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: top 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* When a card is expanded, shift arc upward so card floats above world */
+.arc.has-expanded {
+  top: 34%;
 }
 
 @keyframes arcFanPop {
@@ -108,26 +114,63 @@
 
 .vidcard {
   position: absolute;
-  width: 200px;
-  height: 120px;
-  border-radius: 12px;
+  width: 260px;
+  height: 160px;
+  border-radius: 14px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: #0F172A;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
   cursor: pointer;
   pointer-events: auto;
-  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.25s ease, box-shadow 0.25s ease;
+  transition:
+    transform 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    width 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    height 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.3s ease,
+    box-shadow 0.3s ease,
+    opacity 0.35s ease;
   transform-origin: center bottom;
   padding: 0;
   outline: none;
   font-family: inherit;
 }
 
-.vidcard:hover {
-  transform: translateY(-10px) scale(1.04) !important;
+/* Hover (only when no card is expanded) */
+.vidcard:not(.expanded):hover {
+  transform: translateY(-12px) scale(1.05) !important;
   border-color: #FDB813;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.8);
+}
+
+/* Expanded card — floats above and grows */
+.vidcard.expanded {
+  width: 340px;
+  height: 210px;
+  border-color: #FDB813;
+  box-shadow: 0 32px 80px rgba(253, 184, 19, 0.25), 0 0 0 1px rgba(253, 184, 19, 0.4);
+  z-index: 20;
+}
+
+/* v1 expanded — lift above from left position */
+.vidcard.v1.expanded {
+  transform: rotate(0deg) translateY(-72px) translateX(20px) scale(1.06) !important;
+}
+
+/* v2 expanded — lift straight up */
+.vidcard.v2.expanded {
+  transform: translateX(-50%) translateY(-80px) scale(1.08) !important;
+}
+
+/* v3 expanded — lift above from right position */
+.vidcard.v3.expanded {
+  transform: rotate(0deg) translateY(-72px) translateX(-20px) scale(1.06) !important;
+}
+
+/* Non-expanded cards dim when another is expanded */
+.arc.has-expanded .vidcard:not(.expanded) {
+  opacity: 0.35;
+  transform: scale(0.92) !important;
 }
 
 .vidcard:before {
@@ -232,7 +275,7 @@
 
 .vidcard.v1 {
   left: 3%;
-  top: 56px;
+  top: 66px;
   transform: rotate(-12deg) translateZ(0);
 }
 
@@ -244,7 +287,7 @@
 
 .vidcard.v3 {
   right: 3%;
-  top: 56px;
+  top: 66px;
   transform: rotate(12deg) translateZ(0);
 }
 
@@ -253,7 +296,7 @@
 .details {
   position: absolute;
   left: 50%;
-  top: calc(41% + 125px);
+  top: calc(41% + 145px);
   transform: translateX(-50%);
   width: min(760px, 88vw);
   text-align: center;
@@ -263,6 +306,12 @@
   align-items: center;
   z-index: 10;
   animation: kenhaDetailsRise 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: top 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Push details down when a card is expanded */
+.arc.has-expanded ~ .details {
+  top: calc(34% + 200px);
 }
 
 @keyframes kenhaDetailsRise {
@@ -680,13 +729,22 @@
 @media (max-width: 900px) {
   .arc {
     width: 95vw;
-    height: 190px;
+    height: 220px;
     top: 38%;
   }
 
+  .arc.has-expanded {
+    top: 32%;
+  }
+
   .vidcard {
-    width: 155px;
-    height: 95px;
+    width: 190px;
+    height: 120px;
+  }
+
+  .vidcard.expanded {
+    width: 250px;
+    height: 158px;
   }
 
   .vidcard .vidcard-label {
@@ -699,8 +757,12 @@
   }
 
   .details {
-    top: calc(38% + 110px);
+    top: calc(38% + 130px);
     width: 94vw;
+  }
+
+  .arc.has-expanded ~ .details {
+    top: calc(32% + 190px);
   }
 
   .details .stats {
@@ -711,19 +773,28 @@
 
 @media (max-width: 580px) {
   .arc {
-    height: 150px;
+    height: 170px;
     top: 35%;
   }
 
+  .arc.has-expanded {
+    top: 28%;
+  }
+
   .vidcard {
-    width: 110px;
-    height: 72px;
-    border-radius: 8px;
+    width: 130px;
+    height: 85px;
+    border-radius: 10px;
+  }
+
+  .vidcard.expanded {
+    width: 170px;
+    height: 112px;
   }
 
   .vidcard.v1 {
     left: 1%;
-    top: 38px;
+    top: 44px;
     transform: rotate(-10deg);
   }
 
@@ -733,8 +804,20 @@
 
   .vidcard.v3 {
     right: 1%;
-    top: 38px;
+    top: 44px;
     transform: rotate(10deg);
+  }
+
+  .vidcard.v1.expanded {
+    transform: rotate(0deg) translateY(-55px) translateX(10px) scale(1.06) !important;
+  }
+
+  .vidcard.v3.expanded {
+    transform: rotate(0deg) translateY(-55px) translateX(-10px) scale(1.06) !important;
+  }
+
+  .vidcard.v2.expanded {
+    transform: translateX(-50%) translateY(-60px) scale(1.08) !important;
   }
 
   .vidcard .vidcard-label {
@@ -754,7 +837,11 @@
   }
 
   .details {
-    top: calc(35% + 90px);
+    top: calc(35% + 105px);
+  }
+
+  .arc.has-expanded ~ .details {
+    top: calc(28% + 160px);
   }
 
   .details h2 {

@@ -4,7 +4,7 @@
  */
 window.APP_CONFIG = {
   // Backend API Link for Local Development
-  API_DEV_URL: "http://localhost:3000/api/v1",
+  API_DEV_URL: "https://developed-donated-feeling-terrorism.trycloudflare.com/api/v1",
 
   // Backend API Link for Live Production
   API_PROD_URL: "https://api-vr.kenha.go.ke/api/v1",

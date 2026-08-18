@@ -46,11 +46,13 @@ const STATUS_CONFIG = {
 const ProjectExplorer = ({ project, loading, onClose }) => {
   const [activeVideo, setActiveVideo] = useState(null)
   const [isPlayingDemo, setIsPlayingDemo] = useState(false)
+  const [expandedCard, setExpandedCard] = useState(null)
 
   // Reset video state when project changes
   useEffect(() => {
     setActiveVideo(null)
     setIsPlayingDemo(false)
+    setExpandedCard(null)
   }, [project?.ProjectId])
 
   // Escape key handler
@@ -60,6 +62,8 @@ const ProjectExplorer = ({ project, loading, onClose }) => {
         if (activeVideo) {
           setActiveVideo(null)
           setIsPlayingDemo(false)
+        } else if (expandedCard) {
+          setExpandedCard(null)
         } else if (project) {
           onClose?.()
         }
@@ -67,7 +71,7 @@ const ProjectExplorer = ({ project, loading, onClose }) => {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activeVideo, project, onClose])
+  }, [activeVideo, expandedCard, project, onClose])
 
   // Project attributes from backend
   const isVisible = !!project || loading
@@ -197,16 +201,23 @@ const ProjectExplorer = ({ project, loading, onClose }) => {
           project && (
             <>
               {/* 3D Perspective Curved Arc of Video Cards */}
-              <div className="arc" aria-label="Project media highlight cards">
+              <div className={`arc${expandedCard ? ' has-expanded' : ''}`} aria-label="Project media highlight cards">
                 {arcCards.map((card) => (
                   <button
                     key={card.id}
-                    className={`vidcard ${card.className}`}
+                    className={`vidcard ${card.className}${expandedCard?.id === card.id ? ' expanded' : ''}`}
                     onClick={() => {
-                      setActiveVideo(card)
-                      setIsPlayingDemo(true)
+                      if (expandedCard?.id === card.id) {
+                        // Second click on expanded card → open video
+                        setActiveVideo(card)
+                        setIsPlayingDemo(true)
+                        setExpandedCard(null)
+                      } else {
+                        // First click → expand the card above
+                        setExpandedCard(card)
+                      }
                     }}
-                    aria-label={`Open ${card.title}`}
+                    aria-label={expandedCard?.id === card.id ? `Play ${card.title}` : `Expand ${card.title}`}
                   >
                     {card.thumbUrl ? (
                       <img
