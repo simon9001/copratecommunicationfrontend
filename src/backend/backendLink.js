@@ -7,7 +7,7 @@
  */
 
 // Universal Backend Domain / Server URL (without trailing slash)
-export const BACKEND_URL = 'https://paintball-database-jill-top.trycloudflare.com/'
+export const BACKEND_URL = 'https://paintball-database-jill-top.trycloudflare.com'
 
 // Universal API Version 1 Base URL
 export const API_BASE_URL = `${BACKEND_URL}/api/v1`
