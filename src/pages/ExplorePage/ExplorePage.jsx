@@ -7,6 +7,7 @@ import LayerControl from '../../components/LayerControl/LayerControl'
 import GeoSearch from '../../components/GeoSearch/GeoSearch'
 import ProjectFilters from '../../components/ProjectFilters/ProjectFilters'
 import ProjectExplorer from '../../components/ProjectExplorer/ProjectExplorer'
+import { getPublicMapProjects, getAllProjectRoutes, getProjectById } from '../../services/api'
 import './ExplorePage.css'
 
 // ─── Default layer state ───────────────────────────────────────────────────────
@@ -30,22 +31,14 @@ const DEFAULT_LAYERS = {
 // ─── API helpers ──────────────────────────────────────────────────────────────
 
 async function fetchMapProjects(county, status) {
-  const params = new URLSearchParams()
-  if (county && county !== 'All') params.set('county', county)
-  if (status && status !== 'All') params.set('status', status)
-  const qs = params.toString()
-  const res = await fetch(`/api/v1/public/map${qs ? '?' + qs : ''}`)
-  if (!res.ok) throw new Error('Failed to fetch map data')
-  const json = await res.json()
+  const json = await getPublicMapProjects(county, status)
   const raw = Array.isArray(json) ? json : json.data || []
   return raw.filter((p) => p.Latitude && p.Longitude)
 }
 
 async function fetchAllRoutes() {
   try {
-    const res = await fetch('/api/v1/public/routes')
-    if (!res.ok) return []
-    const json = await res.json()
+    const json = await getAllProjectRoutes()
     return Array.isArray(json) ? json : json.data || []
   } catch {
     return []
@@ -172,9 +165,7 @@ const ExplorePage = () => {
     focusGlobeOnProject(mapProject.Latitude, mapProject.Longitude)
 
     try {
-      const res = await fetch(`/api/v1/projects/${mapProject.ProjectId}`)
-      if (!res.ok) throw new Error('Project not found')
-      const json = await res.json()
+      const json = await getProjectById(mapProject.ProjectId)
       // API returns { data: { ...project, media, locations, updates, milestones } }
       setExplorerProject(json.data || json)
     } catch (err) {

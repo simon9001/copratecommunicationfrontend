@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import MediaCarousel from '../../components/MediaCarousel/MediaCarousel'
 import VRPlayer from '../../components/VRPlayer/VRPlayer'
+import { getProjectBySlug } from '../../services/api'
 import './ProjectPage.css'
 
 function formatInvestment(cost, currency = 'KES') {
@@ -60,9 +61,7 @@ const ProjectPage = () => {
     const fetchProject = async () => {
       try {
         setLoading(true)
-        const response = await fetch(`/api/v1/projects/slug/${slug}`)
-        if (!response.ok) throw new Error('Project not found or network error')
-        const json = await response.json()
+        const json = await getProjectBySlug(slug)
         setProject(json.data || json)
       } catch (err) {
         setError(err.message)

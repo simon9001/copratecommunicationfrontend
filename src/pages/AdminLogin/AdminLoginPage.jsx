@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Lock, Mail } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { login as apiLogin } from '../../services/api'
 import './AdminLoginPage.css'
 
 const AdminLoginPage = () => {
@@ -18,17 +19,7 @@ const AdminLoginPage = () => {
     setIsLoading(true)
 
     try {
-      const response = await fetch('/api/v1/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error?.message || data.message || 'Login failed')
-      }
+      const data = await apiLogin(email, password)
 
       login(data.data.token, data.data.user)
       navigate('/admin')
